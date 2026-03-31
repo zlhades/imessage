@@ -1,0 +1,37 @@
+# MCP Servers Configuration
+
+mcp:
+  servers:
+    # File MCP Server (用于本地开发和测试，替代 Slack)
+    file:
+      enabled: true  # 默认启用 File 模式
+      command: node
+      args:
+        - ./mcp-servers/file/dist/index.js
+
+    # Slack MCP Server (生产环境使用)
+    slack:
+      enabled: false  # 使用 Slack 时启用此配置
+      command: node
+      args:
+        - ./mcp-servers/slack/dist/index.js
+      env:
+        SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
+        SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET}
+
+    github:
+      enabled: false
+      command: node
+      args:
+        - ./mcp-servers/github/dist/index.js
+      env:
+        GITHUB_TOKEN: ${GITHUB_TOKEN}
+
+    prometheus:
+      enabled: false
+      command: node
+      args:
+        - ./mcp-servers/prometheus/dist/index.js
+      env:
+        PROMETHEUS_URL: ${PROMETHEUS_URL}
+        PROMETHEUS_API_KEY: ${PROMETHEUS_API_KEY}

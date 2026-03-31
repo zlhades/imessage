@@ -1,0 +1,26 @@
+# AI Backend Configuration
+# Switch between Qwen and Claude by changing 'active' value
+
+provider:
+  active: qwen  # Change to 'claude' to switch
+  
+  qwen:
+    type: openai-compatible
+    baseUrl: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+    apiKey: ${QWEN_API_KEY}
+    model: qwen3-coder-plus
+    contextLimit: 256000
+    
+  claude:
+    type: anthropic
+    baseUrl: https://api.anthropic.com
+    apiKey: ${CLAUDE_API_KEY}
+    model: claude-opus-4-6
+    # Enterprise deployment (AWS Bedrock)
+    # baseUrl: https://bedrock-runtime.us-east-1.amazonaws.com
+    # authType: aws-iam
+    
+  fallback:
+    enabled: true
+    retryOnFailure: true
+    maxRetries: 2

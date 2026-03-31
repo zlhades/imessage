@@ -1,0 +1,16 @@
+{
+  "channel": "/Users/benson/Documents/incident/monitor/data/test-incident.jsonl",
+  "lastReadTs": "1711953603",
+  "processedIds": [
+    "1711953600"
+  ],
+  "isActive": false,
+  "startTime": "2026-03-31T03:15:35.515Z",
+  "context": {
+    "participants": {},
+    "messageCount": 3,
+    "lastActivity": "2026-03-31T03:15:39.529Z",
+    "endReason": "test_complete"
+  },
+  "endTime": "2026-03-31T03:15:41.525Z"
+}

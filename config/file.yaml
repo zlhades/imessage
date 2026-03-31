@@ -1,0 +1,18 @@
+# File MCP Server Configuration (替代 Slack 用于本地开发和测试)
+
+file:
+  enabled: true
+  
+  # 消息文件路径
+  message_file: ./data/messages.jsonl
+  
+  # 输出文件路径（机器人发送的消息）
+  output_file: ./data/output.jsonl
+  
+  polling:
+    interval_seconds: 5  # 文件模式下更频繁的轮询
+    message_limit: 50
+
+  approval:
+    require_double_check: true
+    show_draft: true

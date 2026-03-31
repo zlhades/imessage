@@ -1,0 +1,18 @@
+# Slack Configuration
+
+slack:
+  channels:
+    incidents: '#incidents'
+    oncall: '#oncall'
+  
+  polling:
+    interval_seconds: 30
+    message_limit: 50
+    
+  approval:
+    require_double_check: true
+    show_draft: true
+    
+  concurrency:
+    defaultStrategy: incremental  # incremental / cancel-and-restart
+    urgentInterrupt: true

@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Data files
+data/*.jsonl
+data/*-state.json
+data/test-*/
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+.env.local
+
+# Build output
+dist/
+*/dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
