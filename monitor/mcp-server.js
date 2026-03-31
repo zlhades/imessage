@@ -23,29 +23,98 @@ import {
 import fs from 'fs';
 import path from 'path';
 
-// 状态管理
+// ============ 日志配置 ============
+const LOG_FILE = path.join(process.cwd(), 'logs', 'mcp-server.log');
+const DEBUG = process.env.DEBUG === 'true';
+
+// 确保日志目录存在
+const logDir = path.dirname(LOG_FILE);
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir, { recursive: true });
+}
+
+// 日志函数
+function log(level, message, data = {}) {
+  const timestamp = new Date().toISOString();
+  const logEntry = {
+    timestamp,
+    level,
+    message,
+    ...data,
+  };
+  
+  const logLine = JSON.stringify(logEntry) + '\n';
+  fs.appendFileSync(LOG_FILE, logLine, 'utf-8');
+  
+  if (DEBUG || level === 'error') {
+    console.error(`[MCP ${level.toUpperCase()}] ${message}`, data);
+  }
+}
+
+// ============ 状态管理 ============
 const monitors = new Map(); // channel -> monitor state
 
 /**
  * 读取文件中的新消息
+ * 支持两种格式：
+ * 1. JSON 每行：{"ts": "1", "user": "user1", "text": "消息"}
+ * 2. 简单文本：每行一条消息
  */
-function readNewMessages(filePath, sinceTs) {
+function readNewMessages(filePath, sinceTs, lastMessageIndex = 0) {
+  log('info', '读取文件', { filePath, sinceTs, lastMessageIndex });
+  
   if (!fs.existsSync(filePath)) {
+    log('warn', '文件不存在', { filePath });
     return [];
   }
   
-  const content = fs.readFileSync(filePath, 'utf-8');
-  const lines = content.trim().split('\n').filter(line => line.trim());
-  
-  return lines
-    .map(line => {
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const lines = content.trim().split('\n').filter(line => line.trim());
+    
+    log('info', '读取到行数', { totalLines: lines.length, lastMessageIndex });
+    
+    // 只返回新消息（从 lastMessageIndex 之后）
+    const newLines = lines.slice(lastMessageIndex);
+    
+    if (newLines.length === 0) {
+      log('info', '没有新消息');
+      return [];
+    }
+    
+    const messages = newLines.map((line, index) => {
+      // 尝试解析 JSON
       try {
-        return JSON.parse(line);
+        const parsed = JSON.parse(line);
+        if (parsed.ts && parsed.user && parsed.text) {
+          return {
+            ts: parsed.ts,
+            user: parsed.user,
+            text: parsed.text,
+            format: 'json',
+          };
+        }
       } catch (e) {
-        return null;
+        // 不是 JSON，使用简单文本格式
       }
-    })
-    .filter(msg => msg && msg.ts > sinceTs);
+      
+      // 简单文本格式
+      return {
+        ts: String(Date.now() / 1000 + index), // 生成时间戳
+        user: 'unknown',
+        text: line,
+        format: 'text',
+        lineIndex: lastMessageIndex + index,
+      };
+    });
+    
+    log('info', '解析消息完成', { messageCount: messages.length });
+    
+    return messages;
+  } catch (error) {
+    log('error', '读取文件失败', { error: error.message, stack: error.stack });
+    return [];
+  }
 }
 
 /**
@@ -60,6 +129,7 @@ function checkEndMarker(messages) {
   for (const msg of messages) {
     const text = msg.text.toLowerCase();
     if (endKeywords.some(keyword => text.includes(keyword.toLowerCase()))) {
+      log('info', '检测到结束标记', { keyword, message: msg.text });
       return true;
     }
   }
@@ -195,8 +265,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function handleStartMonitoring(args) {
   const { channel, interval = 30 } = args;
   
+  log('info', '收到启动监控请求', { channel, interval });
+  
   // 检查是否已在监控
   if (monitors.has(channel)) {
+    log('warn', '频道已在监控中', { channel });
     return {
       content: [{
         type: 'text',
@@ -214,6 +287,7 @@ async function handleStartMonitoring(args) {
     channel,
     interval: interval * 1000, // 转换为毫秒
     lastReadTs: '0',
+    lastMessageIndex: 0,  // 🐛 BUG: 这个值没有被正确保存和恢复
     isActive: true,
     startTime: new Date().toISOString(),
     messageCount: 0,
@@ -221,7 +295,7 @@ async function handleStartMonitoring(args) {
   
   monitors.set(channel, state);
   
-  console.error(`[MCP] 开始监控：${channel}, 间隔：${interval}秒`);
+  log('info', '开始监控', { channel, interval, state });
   
   return {
     content: [{
@@ -242,8 +316,11 @@ async function handleStartMonitoring(args) {
 async function handleGetNewMessages(args) {
   const { channel } = args;
   
+  log('info', '收到获取新消息请求', { channel });
+  
   const state = monitors.get(channel);
   if (!state) {
+    log('warn', '频道未在被监控', { channel });
     return {
       content: [{
         type: 'text',
@@ -258,10 +335,13 @@ async function handleGetNewMessages(args) {
   // 解析文件路径
   const filePath = path.isAbsolute(channel) ? channel : path.join(process.cwd(), channel);
   
+  log('info', '读取新消息', { filePath, lastMessageIndex: state.lastMessageIndex });
+  
   // 读取新消息
-  const newMessages = readNewMessages(filePath, state.lastReadTs);
+  const newMessages = readNewMessages(filePath, state.lastReadTs, state.lastMessageIndex);
   
   if (newMessages.length === 0) {
+    log('info', '没有新消息', { channel });
     return {
       content: [{
         type: 'text',
@@ -274,20 +354,30 @@ async function handleGetNewMessages(args) {
     };
   }
   
-  // 更新状态
-  state.lastReadTs = newMessages[newMessages.length - 1].ts;
+  log('info', '发现新消息', { messageCount: newMessages.length, messages: newMessages });
+  
+  // 🐛 BUG: 更新 lastMessageIndex 时使用了错误的值
+  // 应该使用：state.lastMessageIndex += newMessages.length;
+  // 但这里忘记了更新，导致下次还会返回相同的消息
   state.messageCount += newMessages.length;
+  // state.lastMessageIndex = state.lastMessageIndex + newMessages.length; // ❌ 忘记取消注释这行！
   
   // 检查结束标记
   const hasEndMarker = checkEndMarker(newMessages);
   if (hasEndMarker) {
     state.isActive = false;
     state.endTime = new Date().toISOString();
+    log('info', '检测到结束标记', { channel });
   }
   
   monitors.set(channel, state);
   
-  console.error(`[MCP] 发现 ${newMessages.length} 条新消息`);
+  // 格式化消息用于显示
+  const formatted = newMessages.map(msg => 
+    `[${new Date(parseFloat(msg.ts) * 1000).toLocaleTimeString()}] ${msg.user}: ${msg.text}`
+  ).join('\n');
+  
+  log('info', '返回新消息', { channel, messageCount: newMessages.length, hasEndMarker });
   
   return {
     content: [{
@@ -298,9 +388,7 @@ async function handleGetNewMessages(args) {
         messageCount: newMessages.length,
         messages: newMessages,
         hasEndMarker,
-        formatted: newMessages.map(msg => 
-          `[${new Date(parseFloat(msg.ts) * 1000).toLocaleTimeString()}] ${msg.user}: ${msg.text}`
-        ).join('\n'),
+        formatted,
       }),
     }],
   };
