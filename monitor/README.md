@@ -1,10 +1,61 @@
 # Incident Monitor
 
-> AI 驱动的事件监控工具 - 在 Claude Code / 通义千问中运行
+> AI 驱动的事件监控工具 - 可在 AI 内部运行或独立使用
 
 ---
 
-## 🚀 快速开始
+## 🎯 两种运行方式
+
+### 方式 1: MCP Server（推荐，在 AI 内部运行）
+
+**适用场景**: 在 Claude Code / 通义千问中使用
+
+**配置**:
+```json
+{
+  "mcpServers": {
+    "incident-monitor": {
+      "command": "node",
+      "args": ["/path/to/monitor/mcp-server.js"],
+      "cwd": "/path/to/monitor"
+    }
+  }
+}
+```
+
+**使用**（在 AI 对话中）:
+```
+用户：请监控 data/incident.jsonl
+
+AI: [调用 incident_start_monitoring]
+    好的，已开始监控...
+```
+
+**详细说明**: [MCP-CONFIG.md](./MCP-CONFIG.md)
+
+---
+
+### 方式 2: 命令行工具（独立使用）
+
+**适用场景**: 快速测试、独立使用
+
+**命令**:
+```bash
+# 启动监控
+node bin/monitor.js data/incidents.jsonl --interval 30
+
+# 查看状态
+node bin/monitor.js data/incidents.jsonl --status
+
+# 单次分析
+node bin/monitor.js data/incidents.jsonl --analyze
+```
+
+**详细说明**: [QUICKSTART.md](./QUICKSTART.md)
+
+---
+
+## 🚀 快速开始（命令行方式）
 
 ### 1. 安装依赖
 
