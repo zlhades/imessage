@@ -1,0 +1,33 @@
+# Incident Agent Configuration
+
+# Database
+db_path: "data/agent.db"
+
+# File paths to monitor
+file_paths:
+  - "data/incidents/"
+  - "data/messages/"
+
+# Slack configuration
+slack:
+  token: "${SLACK_BOT_TOKEN}"
+  signing_secret: "${SLACK_SIGNING_SECRET}"
+  channel: "#incidents"
+
+# LLM configuration
+llm:
+  api_key: "${QWEN_API_KEY}"
+  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+  model: "qwen-plus"
+
+# SNARKs configuration
+snarks:
+  enabled: false
+  url: ""
+  interval: 300  # 5 minutes
+
+# Agent settings
+agent:
+  polling_interval: 5  # seconds
+  auto_investigate: true
+  require_confirmation: true
