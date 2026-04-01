@@ -1,0 +1,6 @@
+#!/bin/bash
+# iMessage Command - Quick alias
+# Usage: imessage [limit]
+
+LIMIT=${1:-1}
+python3 /Users/benson/Documents/incident/imessage_command.py --limit "$LIMIT"

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "imessage": {
+      "command": "python3",
+      "args": ["/Users/benson/Documents/incident/skills/imessage/imessage-mcp-server.py"],
+      "description": "iMessage 读取与执行"
+    }
+  }
+}

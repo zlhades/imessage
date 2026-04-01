@@ -47,7 +47,7 @@ def analyze_and_execute(message, contact):
 1. 识别消息中的可执行指令
 2. 如果有明确指令，请直接执行（创建文件、运行命令等）
 3. 如果是问题，请回答
-4. 返回执行结果（简洁明了）
+4. 返回执行结果
 
 请开始执行："""
 
@@ -60,18 +60,18 @@ def analyze_and_execute(message, contact):
             text=True,
             timeout=120
         )
-        
+
         duration = time.time() - start_time
         output = result.stdout
-        
+
         print(output)
-        
+
         # 分析结果类型
         analysis = {
             "type": "command_execution",
             "status": "成功" if result.returncode == 0 else "失败"
         }
-        
+
         # 发送详细摘要
         send_detailed_summary(
             contact=contact,
@@ -80,9 +80,9 @@ def analyze_and_execute(message, contact):
             execution_result=output,
             duration=duration
         )
-        
+
         return output
-        
+
     except subprocess.TimeoutExpired:
         duration = time.time() - start_time
         print("⏰ 执行超时")

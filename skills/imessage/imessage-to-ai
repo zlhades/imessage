@@ -1,0 +1,30 @@
+#!/bin/bash
+# 一键获取消息并输出为 AI 友好的格式
+
+CONTACT="${1:-+18336801616}"
+
+MESSAGE=$(python3 /Users/benson/Documents/incident/skills/imessage/imessage_skill.py last "$CONTACT" 2>/dev/null)
+
+if [ $? -eq 0 ]; then
+    # 输出为 AI 友好的格式
+    python3 << EOF
+import json
+
+msg = json.loads('$MESSAGE')
+
+print(f"""
+【iMessage 输入给 AI】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+联系人：{msg.get('handle', '未知')}
+时间：{msg.get('date', '未知')}
+发送者：{'我' if msg.get('is_from_me') else '对方'}
+内容：{msg.get('text', '[无内容]')}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+请基于以上消息内容执行任务。
+""")
+EOF
+else
+    echo "❌ 获取消息失败"
+    exit 1
+fi

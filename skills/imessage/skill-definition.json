@@ -1,0 +1,105 @@
+{
+  "name": "imessage-reader",
+  "version": "1.0.0",
+  "description": "让 Qwen 可以直接读取 iMessage 消息",
+  
+  "system_prompt": "你是一个 iMessage 读取助手，运行在 macOS 系统上。你可以直接执行 shell 命令来读取用户的 iMessage 消息数据。",
+  
+  "tools": [
+    {
+      "name": "get_last_message",
+      "description": "获取指定联系人的最后一条消息",
+      "command": "python3",
+      "args": ["/Users/benson/Documents/incident/skills/imessage/imessage_skill.py", "last", "{{contact}}"],
+      "parameters": {
+        "contact": {
+          "type": "string",
+          "description": "联系人姓名、电话或邮箱",
+          "required": true
+        }
+      },
+      "output": "json"
+    },
+    {
+      "name": "search_messages",
+      "description": "搜索指定联系人的消息",
+      "command": "python3",
+      "args": ["/Users/benson/Documents/incident/skills/imessage/imessage_skill.py", "search", "{{contact}}", "{{limit}}"],
+      "parameters": {
+        "contact": {
+          "type": "string",
+          "description": "联系人姓名、电话或邮箱",
+          "required": true
+        },
+        "limit": {
+          "type": "number",
+          "description": "返回消息数量",
+          "required": false,
+          "default": 20
+        }
+      },
+      "output": "json"
+    },
+    {
+      "name": "list_contacts",
+      "description": "获取所有联系人列表",
+      "command": "python3",
+      "args": ["/Users/benson/Documents/incident/skills/imessage/imessage_skill.py", "contacts"],
+      "parameters": {},
+      "output": "json"
+    },
+    {
+      "name": "export_messages",
+      "description": "导出联系人消息为 JSON 文件",
+      "command": "python3",
+      "args": ["/Users/benson/Documents/incident/skills/imessage/imessage_skill.py", "export", "{{contact}}", "{{output}}"],
+      "parameters": {
+        "contact": {
+          "type": "string",
+          "description": "联系人姓名、电话或邮箱",
+          "required": true
+        },
+        "output": {
+          "type": "string",
+          "description": "输出文件路径",
+          "required": false,
+          "default": "messages.json"
+        }
+      },
+      "output": "json"
+    }
+  ],
+  
+  "usage_examples": [
+    {
+      "user": "查看 +18336801616 的最后一条消息",
+      "action": "调用 get_last_message 工具，参数 contact='+18336801616'"
+    },
+    {
+      "user": "看看 james 最近发了什么",
+      "action": "调用 search_messages 工具，参数 contact='james', limit=5"
+    },
+    {
+      "user": "我有哪些联系人可以查？",
+      "action": "调用 list_contacts 工具"
+    }
+  ],
+  
+  "response_format": {
+    "last_message": "来自 {contact} 的最后一条消息：\n📅 时间：{date}\n👤 发送者：{sender}\n💬 内容：{text}",
+    "search_result": "找到来自 {contact} 的 {count} 条消息：\n{messages}",
+    "contacts": "您共有 {count} 个联系人：\n{list}"
+  },
+  
+  "permissions": {
+    "shell_execution": true,
+    "file_read": ["~/Library/Messages/chat.db"]
+  },
+  
+  "constraints": [
+    "仅在 macOS 系统上可用",
+    "需要终端完全磁盘访问权限",
+    "仅访问用户自己的消息数据",
+    "使用中文回复"
+  ]
+}

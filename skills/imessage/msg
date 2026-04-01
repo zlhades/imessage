@@ -1,0 +1,27 @@
+#!/bin/bash
+# 🚀 一键获取 +18336801616 最后一条消息并让 Qwen 处理
+
+CONTACT="${1:-+18336801616}"
+
+# 获取消息
+MESSAGE=$(python3 /Users/benson/Documents/incident/skills/imessage/imessage_skill.py last "$CONTACT" 2>/dev/null)
+
+if [ $? -ne 0 ]; then
+    echo "❌ 获取消息失败"
+    exit 1
+fi
+
+# 提取信息
+TEXT=$(echo "$MESSAGE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('text',''))")
+DATE=$(echo "$MESSAGE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('date',''))")
+FROM=$(echo "$MESSAGE" | python3 -c "import sys,json; d=json.load(sys.stdin); print('我' if d.get('is_from_me') else '对方')")
+
+# 输出
+echo ""
+echo "📱 $CONTACT 的最后一条消息"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "📅 $DATE | 👤 $FROM"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "💬 $TEXT"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""

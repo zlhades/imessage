@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+"""
+iMessage 自动执行系统
+读取 iMessage → 理解指令 → 自动执行
+"""
+
+import subprocess
+import json
+import sys
+import os
+
+CONTACT = sys.argv[1] if len(sys.argv) > 1 else "zlhades@icloud.com"
+
+print("╔═══════════════════════════════════════════════════════════╗")
+print("║        iMessage 自动执行系统 - 读取并执行指令               ║")
+print("╚═══════════════════════════════════════════════════════════╝")
+print()
+
+# 步骤 1: 读取最后一条消息
+print(f"📱 正在读取 {CONTACT} 的最后一条消息...")
+result = subprocess.run(
+    ["python3", "/Users/benson/Documents/incident/skills/imessage/imessage_skill_v2.py", "last", CONTACT],
+    capture_output=True,
+    text=True
+)
+
+if result.returncode != 0:
+    print("❌ 读取消息失败")
+    sys.exit(1)
+
+message = json.loads(result.stdout)
+text = message.get('text', '')
+date = message.get('date', '')
+is_from_me = message.get('is_from_me', False)
+
+print(f"📅 时间：{date}")
+print(f"👤 发送者：{'我' if is_from_me else '对方'}")
+print(f"💬 内容：{text}")
+print()
+print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+print()
+
+# 步骤 2: 让 Qwen 分析并执行指令
+print("🤖 正在分析指令并执行...")
+print()
+
+# 创建 Qwen 提示词
+prompt = f"""我收到一条 iMessage 消息，请分析并执行其中的指令：
+
+【消息内容】
+{text}
+
+【任务】
+1. 识别这条消息中的可执行指令
+2. 如果有明确指令，请直接执行
+3. 如果是描述性内容，请总结用户想要什么
+4. 返回执行结果
+
+请开始执行："""
+
+# 调用 Qwen CLI
+qwen_result = subprocess.run(
+    ["qwen", "-p", prompt, "-y"],
+    capture_output=True,
+    text=True,
+    timeout=120
+)
+
+print(qwen_result.stdout)
+
+if qwen_result.stderr:
+    print("日志:", qwen_result.stderr)
+
+print()
+print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+print("✅ 执行完成")
