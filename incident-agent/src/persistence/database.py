@@ -68,10 +68,16 @@ class AgentDatabase:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
+        # Ensure context is a dict, not already JSON string
+        if isinstance(context, str):
+            context_json = context
+        else:
+            context_json = json.dumps(context)
+        
         cursor.execute("""
             INSERT OR REPLACE INTO events (id, status, context, updated_at)
             VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-        """, (event_id, status, json.dumps(context)))
+        """, (event_id, status, context_json))
         
         conn.commit()
         conn.close()
