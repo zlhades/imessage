@@ -1,0 +1,28 @@
+# Incident Context
+
+## Slack 讨论记录
+
+[14:00] user1: /api/payment 端点响应很慢，平均 5 秒
+[14:05] user2: 我也是，超时错误率 30%
+[14:10] sre1: 数据库查询正常，不是 DB 问题
+[14:15] dev1: 可能是 Redis 缓存失效了
+[14:20] sre1: 确认了，Redis 命中率从 95% 掉到 10%
+[14:25] dev1: 找到原因了，缓存 key 过期策略有问题
+
+## 错误日志
+
+```
+2026-03-31 14:00:00 WARN [payment-service] Slow query detected: 5000ms
+2026-03-31 14:05:00 ERROR [payment-service] Request timeout after 30000ms
+2026-03-31 14:10:00 WARN [cache] Cache miss rate: 90%
+```
+
+## 监控指标
+
+- API P99 延迟：5000ms (正常<500ms)
+- 超时错误率：30%
+- Redis 命中率：10% (正常>90%)
+- Redis 内存：2GB/8GB
+
+---
+更新时间：2026-03-31 14:30

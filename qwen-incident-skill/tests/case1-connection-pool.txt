@@ -1,0 +1,30 @@
+# Incident Context
+
+## Slack 讨论记录
+
+[10:01] oncall: 支付服务报错 503，有人知道吗？
+[10:05] dev1: 我看看...发现数据库连接池满
+[10:08] sre1: 监控显示 CPU 正常，内存 80%
+[10:10] dev1: 连接池配置 max=50，可能太小了
+[10:15] oncall: 影响多大？
+[10:18] dev1: 大概 30% 的请求失败
+
+## 错误日志
+
+```
+2026-03-31 10:01:00 ERROR [payment-service] Connection pool exhausted
+2026-03-31 10:02:15 ERROR [payment-service] Timeout waiting for connection
+2026-03-31 10:03:30 ERROR [payment-service] Cannot acquire connection from pool
+2026-03-31 10:04:45 ERROR [payment-service] HTTP 503 Service Unavailable
+```
+
+## 监控指标
+
+- 服务：payment-service
+- 错误率：30%
+- 响应时间：P99=5000ms (正常<500ms)
+- 连接池：50/50 (100% 使用)
+- 数据库：CPU 40%, 连接数 200
+
+---
+更新时间：2026-03-31 10:20

@@ -1,0 +1,28 @@
+# Incident Context
+
+## Slack 讨论记录
+
+[09:00] monitoring: [告警] user-service 内存使用率 95%
+[09:05] oncall: 服务开始响应缓慢
+[09:10] dev1: 最近有内存优化 commit，可能引入泄漏
+[09:15] sre1: GC 频率异常，每分钟 10 次
+[09:20] sre1: 已重启服务，暂时恢复
+[09:25] dev1: 回滚了最近的 commit，观察中
+
+## 错误日志
+
+```
+2026-03-31 09:00:00 WARN [user-service] Heap memory usage: 95%
+2026-03-31 09:05:00 ERROR [user-service] OutOfMemoryError: Java heap space
+2026-03-31 09:10:00 WARN [user-service] GC overhead limit exceeded
+```
+
+## 监控指标
+
+- 内存使用率：95% → 重启后 40%
+- GC 频率：每分钟 10 次 (正常<2 次)
+- 堆内存：8GB (已用 7.6GB)
+- 服务重启次数：2 次
+
+---
+更新时间：2026-03-31 09:35
