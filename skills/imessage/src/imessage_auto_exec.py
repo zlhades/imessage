@@ -8,6 +8,7 @@ iMessage Auto-Exec Module
 
 import sqlite3
 import os
+import sys
 import time
 import subprocess
 import re
