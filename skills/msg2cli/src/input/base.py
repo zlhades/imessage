@@ -27,9 +27,9 @@ class Message:
 class BaseInput(ABC):
     """输入源基类"""
 
-    def __init__(self, config: Dict[str, Any]):
-        self.config = config
-        self.contacts = config.get("contacts", [])
+    def __init__(self, config: Dict[str, Any] = None):
+        self.config = config or {}
+        self.contacts = self.config.get("contacts", [])
 
     @abstractmethod
     def get_last_message(self) -> Optional[Message]:

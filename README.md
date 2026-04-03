@@ -1,156 +1,8 @@
-# Slack AI Incident Response Bot
+# Incident Response + msg2cli
 
-> AI 驱动的事件响应机器人，集成 Slack + MCP 架构，支持发送前双重确认和本地交互
->
-> **✨ 新增：File 模式** - 无需 Slack，使用文件即可开发和测试！
-
----
-
-## 📖 文档导航
-
-### 核心文档（必读）
-
-| 文档 | 说明 | 何时阅读 |
-|------|------|----------|
-| **[README.md](./README.md)** | 项目入口 | 👈 第一次查看 |
-| **[QUICK-START.md](./QUICK-START.md)** | 快速开始 | 👈 首次运行 |
-| **[REQUIREMENTS.md](./REQUIREMENTS.md)** | 需求规格书 | 查看完整需求 |
-| **[FILE-MODE-GUIDE.md](./FILE-MODE-GUIDE.md)** | File 模式指南 | 使用 File 模式 |
-
-### 设计与架构
-
-| 文档 | 说明 | 何时阅读 |
-|------|------|----------|
-| **[PLAN.md](./PLAN.md)** | 主实施计划 | 了解项目全貌 |
-| **[PLAN-MCP-ARCHITECTURE.md](./PLAN-MCP-ARCHITECTURE.md)** | 详细架构 | 实现模块时参考 |
-
-### 测试与完成
-
-| 文档 | 说明 | 何时阅读 |
-|------|------|----------|
-| **[TESTING.md](./TESTING.md)** | 测试指南 | 运行测试时 |
-| **[COMPLETE.md](./COMPLETE.md)** | 完成总结 | 了解已完成功能 |
-
-**总计**: 7 个核心文档，4 个参考文档
-
----
-
-## 🎯 项目目标
-
-构建一个 Slack 集成的 AI 事件响应机器人，当事故发生时自动：
-- 监控 Slack 频道讨论
-- 理解对话状态并主动追问
-- 调用工具调查问题（代码、日志、Metrics）
-- 生成回复前让人类确认
-
----
-
-## 💡 核心设计
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     Qwen Code CLI                                    │
-│                  (或未来 Claude Code)                                │
-│                                                                      │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │                    MCP Servers                                  │ │
-│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │ │
-│  │  │   Slack MCP     │  │   GitHub MCP    │  │  Prometheus MCP │ │ │
-│  │  │ - get_messages  │  │ - get_code      │  │ - get_metrics   │ │ │
-│  │  │ - send_message  │  │ - get_commits   │  │ - query_logs    │ │ │
-│  │  │ - check_new     │  │                 │  │                 │ │ │
-│  │  └─────────────────┘  └─────────────────┘  └─────────────────┘ │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### 设计原则
-
-| 原则 | 说明 |
-|------|------|
-| **MCP 架构** | 无状态，Pull 模式，简单可扩展 |
-| **发送前双重确认** | Pull → Confirm → 再 Pull → 发送 |
-| **本地交互** | 支持本地补充信息和指导 AI |
-| **增量更新** | 默认不取消任务，合并新消息 |
-| **无缝迁移** | 改配置即可从 Qwen 切换到 Claude |
-
----
-
-## 🚀 快速开始
-
-### 方式 1: File 模式（推荐，无需 Slack）
-
-适合中国用户和本地开发：
-
-```bash
-# 1. 安装依赖
-npm install
-
-# 2. 构建 File MCP Server
-cd mcp-servers/file && npm install && npm run build && cd ../..
-
-# 3. 创建示例消息
-node dist/file-mode.js --create-sample
-
-# 4. 运行机器人
-npm run dev
-```
-
-详细说明请查看 **[FILE-MODE-GUIDE.md](./FILE-MODE-GUIDE.md)**
-
----
-
-### 方式 2: Slack 模式（生产环境）
-
-需要 Slack Token 和国际网络：
-
-```bash
-# 1. 配置环境变量
-cp .env.example .env
-# 编辑 .env，填入 SLACK_BOT_TOKEN 等
-
-# 2. 构建 Slack MCP Server
-cd mcp-servers/slack && npm install && npm run build && cd ../..
-
-# 3. 修改配置
-# config/mcp.yaml: 启用 slack，禁用 file
-
-# 4. 运行
-npm run dev
-```
-
-**下次继续实施时，请阅读 [QUICK-START.md](./QUICK-START.md)**
-
-复制其中的 Prompt 发送给 AI 即可继续。
-
----
-
-## 📊 实施进度
-
-| 阶段 | 内容 | 状态 |
-|------|------|------|
-| ✅ Phase 1 | 基础架构 (Week 1) | 已完成 |
-| ✅ Phase 2 | AI 核心 (Week 2) | 已完成 |
-| ✅ Phase 3 | 调查引擎 (Week 3) | 已完成 |
-| ✅ Phase 4 | 发送前双重确认 (Week 4) | 已完成 |
-| ✅ Phase 5 | 定时运行 + 状态持久化 (Week 5) | 已完成 |
-| ✅ Phase 6 | 迁移准备 (内置) | 已完成 |
-
-**完成总结**: 查看 [COMPLETE.md](./COMPLETE.md)
-
----
-
-## 🛠️ 技术栈
-
-| 模块 | 选型 |
-|------|------|
-| 运行时 | Node.js 20+ / TypeScript |
-| MCP | @modelcontextprotocol/sdk |
-| **消息源** | **File (本地开发)** / Slack (生产) |
-| AI | DashScope SDK (OpenAI 兼容) |
-| 配置 | YAML + dotenv |
-| 日志 | Winston + JSON |
-| 测试 | Vitest |
+> 本项目包含两个独立但相关的子系统：
+> 1. **Slack AI Incident Response Bot** — AI 驱动的事故响应机器人
+> 2. **msg2cli** — 从手机 iMessage 发送指令到 AI CLI 的桥接工具
 
 ---
 
@@ -158,112 +10,142 @@ npm run dev
 
 ```
 incident/
-├── README.md                    # 本文件 - 项目入口
-├── PLAN.md                      # 主实施计划
-├── PLAN-MCP-ARCHITECTURE.md     # 详细 MCP 架构
-├── QUICK-START.md               # 快速恢复指南
-├── FILE-MODE-GUIDE.md           # 🆕 File 模式使用指南
-├── src/
-│   ├── index.ts                 # 主程序入口
-│   ├── file-mode.ts             # 🆕 File 模式工具
-│   ├── ai/                      # AI Provider
-│   ├── mcp/                     # MCP Client
-│   ├── analysis/                # 意图识别/完整性检查
-│   ├── investigation/           # 调查引擎
-│   └── approval/                # 发送前确认
-├── mcp-servers/
-│   ├── file/                    # 🆕 File MCP Server
+├── src/                         # Slack Bot 主代码 (TypeScript)
+├── mcp-servers/                 # MCP 服务器实现
 │   ├── slack/                   # Slack MCP Server
 │   ├── github/                  # GitHub MCP Server
-│   └── prometheus/              # Prometheus MCP Server
-├── config/                      # 配置文件
+│   ├── prometheus/              # Prometheus MCP Server
+│   ├── file/                    # File MCP Server (本地开发)
+│   └── logs/                    # Logs MCP Server (占位)
+├── config/                      # YAML 配置
 ├── data/                        # 运行时数据
-│   ├── messages.jsonl           # 🆕 输入消息（File 模式）
-│   └── output.jsonl             # 🆕 输出消息（File 模式）
-└── tests/
-    ├── unit/                    # 单元测试
-    ├── integration/             # 集成测试
-    └── e2e/                     # 🆕 E2E 测试（含 File 模式）
+├── logs/                        # 日志目录
+├── tests/                       # TypeScript 项目测试
+│
+├── skills/
+│   └── msg2cli/                 # iMessage → AI CLI 桥接工具 (Python + Node.js)
+│       ├── src/
+│       │   ├── input/           # iMessage 输入
+│       │   ├── output/          # Qwen 输出注入
+│       │   ├── reply/           # iMessage 回复
+│       │   ├── mcp/             # MCP Servers
+│       │   ├── watcher.py       # 主轮询循环
+│       │   └── injector.py      # tmux 注入器
+│       ├── config/config.yaml   # msg2cli 配置
+│       ├── docs/                # 文档
+│       └── tests/               # 测试
+│
+├── README.md                    # 本文件
+├── QUICK-START.md               # Slack Bot 快速开始
+├── REQUIREMENTS.md              # 需求规格
+├── PLAN.md                      # 实施计划
+├── PLAN-MCP-ARCHITECTURE.md     # MCP 架构设计
+├── TESTING.md                   # 测试指南
+├── COMPLETE.md                  # 完成总结
+├── package.json
+├── tsconfig.json
+└── vitest.config.ts
 ```
 
 ---
 
-## 📋 配置示例
+## 1️⃣ Slack AI Incident Response Bot
 
-### config/ai-backend.yaml
+### 概述
+监控 Slack 频道中的事故讨论，AI 自动分析、调查，生成回复前需人类确认。
 
-```yaml
-provider:
-  active: qwen  # 切换为 claude 即可迁移
-  
-  qwen:
-    type: openai-compatible
-    baseUrl: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
-    apiKey: ${QWEN_API_KEY}
-    model: qwen3-coder-plus
-    
-  claude:
-    type: anthropic
-    baseUrl: https://api.anthropic.com
-    apiKey: ${CLAUDE_API_KEY}
-    model: claude-opus-4-6
-```
-
----
-
-## 🔑 需要的凭证
-
-### File 模式（推荐）
-
-✅ **无需任何凭证**，只需：
-
-1. **Node.js 20+** 环境
-2. 构建 File MCP Server
-
-### Slack 模式（生产环境）
-
-需要以下凭证：
-
-1. **Slack App Token**
-   - `SLACK_APP_TOKEN`
-   - `SLACK_BOT_TOKEN`
-   - `SLACK_SIGNING_SECRET`
-
-2. **DashScope API Key**
-   - `QWEN_API_KEY`
-
-3. **其他 (可选)**
-   - `GITHUB_TOKEN`（GitHub 调查）
-   - `PROMETHEUS_URL` + `PROMETHEUS_API_KEY`（Prometheus 调查）
-
----
-
-## 📝 相关命令
+### 快速开始
 
 ```bash
-# 查看主计划
-cat PLAN.md
-
-# 查看架构详情
-cat PLAN-MCP-ARCHITECTURE.md
-
-# 查看快速开始指南
-cat QUICK-START.md
-
-# 查看 File 模式指南（推荐）
-cat FILE-MODE-GUIDE.md
-
-# File 模式快速开始
 npm install
-cd mcp-servers/file && npm install && npm run build && cd ../..
-node dist/file-mode.js --create-sample
 npm run dev
+```
 
-# 运行 E2E 测试
-npm test -- tests/e2e/file-mode.test.ts
+File 模式（无需 Slack）或 Slack 模式（生产环境）均可使用。
+
+### 详细文档
+- [QUICK-START.md](./QUICK-START.md) — 5 分钟上手
+- [REQUIREMENTS.md](./REQUIREMENTS.md) — 完整需求
+- [PLAN-MCP-ARCHITECTURE.md](./PLAN-MCP-ARCHITECTURE.md) — 架构设计
+
+### 技术栈
+| 模块 | 技术 |
+|------|------|
+| 运行时 | Node.js 20+ / TypeScript |
+| MCP | @modelcontextprotocol/sdk |
+| AI | Qwen (DashScope) / Claude (Anthropic) |
+| 配置 | YAML + dotenv |
+| 测试 | Vitest |
+
+---
+
+## 2️⃣ msg2cli — iMessage → AI CLI 桥接
+
+### 概述
+从手机发送 iMessage 到电脑 → 自动注入到 AI CLI (Qwen Code) → 执行结果回复回手机。
+
+```
+手机 iMessage → watcher.py 轮询 DB → tmux 注入到 Qwen CLI → 捕获输出 → iMessage 回复
+```
+
+### 快速开始
+
+```bash
+# 1. 配置联系人
+# 编辑 skills/msg2cli/config/config.yaml
+
+# 2. 启动 Qwen Code 的 tmux 会话
+tmux new-session -d -s qwen
+tmux send-keys -t qwen "qwen" Enter
+
+# 3. 启动 Watcher
+cd skills/msg2cli
+python3 src/watcher.py
+
+# 4. 从手机给 zlhades@icloud.com 发 iMessage，如 "运行 ls -la"
+```
+
+### MCP Server 集成
+想在 Qwen Code 或 Claude Desktop 中直接读取 iMessage？
+
+```json
+// ~/.qwen/settings.json
+{
+  "mcpServers": {
+    "msg2cli": {
+      "command": "node",
+      "args": ["/Users/benson/Documents/incident/skills/msg2cli/src/mcp/qwen.js"]
+    }
+  }
+}
+```
+
+### 详细文档
+- [skills/msg2cli/README.md](./skills/msg2cli/README.md) — msg2cli 项目入口
+- [skills/msg2cli/docs/USAGE.md](./skills/msg2cli/docs/USAGE.md) — 使用指南
+
+### 技术栈
+| 模块 | 技术 |
+|------|------|
+| 运行时 | Python 3 |
+| 数据库 | SQLite (`~/Library/Messages/chat.db`) |
+| 终端 | tmux + AppleScript (`osascript`) |
+| MCP | Node.js (ESM) |
+| 配置 | YAML (pyyaml) |
+
+---
+
+## 🧪 运行测试
+
+```bash
+# TypeScript 项目
+npm test
+
+# msg2cli (Python)
+cd skills/msg2cli
+python3 -m pytest tests/ -v
 ```
 
 ---
 
-*最后更新：2026-03-19*
-# imessage
+*最后更新：2026-04-03*

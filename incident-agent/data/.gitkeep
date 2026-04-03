@@ -1,7 +1,0 @@
-# Data Directory
-
-This directory stores:
-- agent.db - SQLite database
-- incidents/ - Incident files
-- messages/ - Message files
-- states/ - Agent states
