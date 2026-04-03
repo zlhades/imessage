@@ -50,11 +50,17 @@ class TestIMessageInput:
             def search_messages(self, c, l=10): return []
             def get_contacts(self): return []
 
-        markers = ["[Done]", "[Failed]", "[Received]", "[Auto]", "[Timeout]"]
+        markers = ["✅", "❌", "⏱️", "📊", "✅ Done", "❌ Failed", "[Received]"]
         inp = Dummy()
-        assert inp.is_auto_message("[Done] run ls -la", markers) is True
-        assert inp.is_auto_message("[Received] hello", markers) is True
+        # All bot reply types must be caught
+        assert inp.is_auto_message("✅ Received: run ls -la", markers) is True
+        assert inp.is_auto_message("✅ Done\n\nCommand: run ls", markers) is True
+        assert inp.is_auto_message("❌ Failed\n\nCommand: run test", markers) is True
+        assert inp.is_auto_message("❌ Injection failed", markers) is True
+        assert inp.is_auto_message("⏱️ Timeout: >2 minutes", markers) is True
+        # Normal user messages should NOT be caught
         assert inp.is_auto_message("run ls -la", markers) is False
+        assert inp.is_auto_message("create a project", markers) is False
 
 
 class TestQwenOutput:
@@ -95,7 +101,7 @@ class TestIMessageReply:
         r.send_summary("test@test.com", "run ls -la", "total 100\ndrwxr-xr-x", True)
         assert len(r.sent) == 1
         _, msg = r.sent[0]
-        assert "[Done]" in msg
+        assert "✅ Done" in msg
         assert "run ls -la" in msg
 
     def test_send_error_format(self):
@@ -108,7 +114,7 @@ class TestIMessageReply:
         r.send_error("test@test.com", "run test", "File not found")
         assert len(r.sent) == 1
         _, msg = r.sent[0]
-        assert "[Failed]" in msg
+        assert "❌ Failed" in msg
         assert "File not found" in msg
 
     def test_escape_applescript(self):
@@ -171,25 +177,27 @@ class TestE2E_AutoReplyLoopPrevention:
         return Watcher(cfg)
 
     def test_done_marker_is_ignored(self):
-        """Messages starting with [Done] should not trigger injection."""
+        """Messages with ✅ emoji should not trigger injection."""
         w = self._make_watcher()
-        # Simulate that a reply message would be detected
-        assert w.input.is_auto_message("[Done] run ls", w.auto_markers) is True
+        assert w.input.is_auto_message("✅ Done run ls", w.auto_markers) is True
+        assert w.input.is_auto_message("✅ Received: hello", w.auto_markers) is True
 
     def test_failed_marker_is_ignored(self):
-        """Messages starting with [Failed] should not trigger injection."""
+        """Messages with ❌ emoji should not trigger injection."""
         w = self._make_watcher()
-        assert w.input.is_auto_message("[Failed] check logs", w.auto_markers) is True
+        assert w.input.is_auto_message("❌ Failed check logs", w.auto_markers) is True
+        assert w.input.is_auto_message("❌ Injection failed", w.auto_markers) is True
 
     def test_received_marker_is_ignored(self):
-        """Messages starting with [Received] should not trigger injection."""
+        """Messages with [Received] or ✅ emoji should not trigger injection."""
         w = self._make_watcher()
         assert w.input.is_auto_message("[Received] hello world", w.auto_markers) is True
+        assert w.input.is_auto_message("✅ Received: hello", w.auto_markers) is True
 
     def test_timeout_marker_is_ignored(self):
-        """Messages starting with [Timeout] should not trigger injection."""
+        """Messages with ⏱️ emoji should not trigger injection."""
         w = self._make_watcher()
-        assert w.input.is_auto_message("[Timeout] please retry", w.auto_markers) is True
+        assert w.input.is_auto_message("⏱️ Timeout: please retry", w.auto_markers) is True
 
     def test_normal_message_passes(self):
         """Normal messages without markers should NOT be filtered."""
@@ -343,7 +351,7 @@ class TestE2E_InstructionAnalysis:
 
     def test_watcher_auto_markers_cover_reply_markers(self):
         """
-        Anti-loop: auto_markers in config should cover all possible
+        Anti-loop: auto_markers in config must cover ALL possible
         reply prefixes so the watcher never re-processes its own messages.
         """
         import yaml
@@ -353,15 +361,11 @@ class TestE2E_InstructionAnalysis:
 
         auto_markers = set(cfg["settings"]["auto_markers"])
 
-        # All possible reply prefixes the system generates
-        reply_prefixes = ["[Done]", "[Failed]", "[Received]", "[Timeout]", "[Auto]"]
+        # All possible reply prefixes the system generates (emoji + bracket)
+        reply_prefixes = ["✅", "❌", "⏱️", "[Received]"]
         for prefix in reply_prefixes:
-            # The prefix (or a marker within it) should be covered by auto_markers
-            # Since we use bracket-style markers, check if any auto_marker matches
             has_coverage = any(prefix in m or m in prefix for m in auto_markers)
-            # If not directly covered, the emoji in auto_markers should cover it
-            # since replies use bracket format, we need bracket markers in auto_markers
-            assert has_coverage or any(m.startswith("[") for m in auto_markers), \
+            assert has_coverage, \
                 f"Reply prefix '{prefix}' not covered by auto_markers: {auto_markers}"
 
 

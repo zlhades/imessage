@@ -28,11 +28,11 @@ class BaseReply(ABC):
 
     def send_summary(self, contact: str, original: str, result: str, success: bool = True) -> bool:
         """Send execution summary."""
-        status = "Done" if success else "Failed"
-        summary = f"[{status}]\n\nCommand: {original[:50]}\nResult: {result[:200]}"
+        status = "✅ Done" if success else "❌ Failed"
+        summary = f"{status}\n\nCommand: {original[:50]}\nResult: {result[:200]}"
         return self.send(contact, summary)
 
     def send_error(self, contact: str, command: str, error: str) -> bool:
         """Send error notification."""
-        msg = f"[Failed]\n\nCommand: {command}\nError: {error[:200]}"
+        msg = f"❌ Failed\n\nCommand: {command}\nError: {error[:200]}"
         return self.send(contact, msg)

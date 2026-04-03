@@ -128,6 +128,26 @@ class Watcher:
         except OSError:
             pass
 
+    def mark_reply_done(self, contact: str, original_text: str, reply_text: str):
+        """Mark both original and reply text as done, to prevent loop.
+
+        When the bot sends a reply via AppleScript, the reply may appear
+        in the iMessage DB as a new message (is_from_me=0). We save both
+        the original and a truncated reply prefix to the done set.
+        """
+        self.done.add(original_text)
+        # Save reply prefix so we skip the reply when it appears in DB
+        reply_prefix = reply_text[:60]
+        self.done.add(reply_prefix)
+        self.done.add(reply_text)
+        if len(self.done) > 1000:
+            self.done = set(list(self.done)[-500:])
+        try:
+            with open(self.done_file, 'w') as f:
+                f.write('\n'.join(self.done))
+        except OSError:
+            pass
+
     def run(self):
         """Start listening."""
         self.log("=" * 35)
@@ -173,8 +193,9 @@ class Watcher:
                     # 3. Inject into AI CLI
                     if self.output.inject(msg.text):
                         self.log(f"Injected into {self.output.session}")
-                        self.reply.send(msg.sender, f"[Received] {msg.text[:30]}...")
-                        self.mark_done(msg.text)
+                        reply_text = f"✅ Received: {msg.text[:30]}..."
+                        self.reply.send(msg.sender, reply_text)
+                        self.mark_reply_done(msg.sender, msg.text, reply_text)
                         self.last_msg_text = msg.text
                         pending_text = msg.text
                         pending_contact = msg.sender
@@ -183,7 +204,9 @@ class Watcher:
                         self.stats["total"] += 1
                     else:
                         self.log("Injection failed")
-                        self.reply.send(msg.sender, "[Injection failed] Check AI CLI status")
+                        reply_text = "❌ Injection failed. Check AI CLI status"
+                        self.reply.send(msg.sender, reply_text)
+                        self.mark_reply_done(msg.sender, msg.text, reply_text)
                         self.stats["skipped"] += 1
 
                 # 4. Check if AI finished
@@ -203,7 +226,9 @@ class Watcher:
                             pending_text = None
                             pending_start = None
                         elif elapsed > 120:
-                            self.reply.send(pending_contact, "[Timeout] >2 minutes, check AI CLI status")
+                            reply_text = "⏱️ Timeout: >2 minutes, check AI CLI status"
+                            self.reply.send(pending_contact, reply_text)
+                            self.mark_reply_done(pending_contact, pending_text, reply_text)
                             self.log("Timeout")
                             pending_text = None
                             pending_start = None

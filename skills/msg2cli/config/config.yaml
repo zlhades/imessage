@@ -55,9 +55,12 @@ settings:
   done_file: "/tmp/msg2cli_done.txt"
   # Anti-loop: any message containing these markers is ignored
   # Must cover ALL reply prefixes to prevent infinite loops
+  # Covers both emoji and bracket-style markers
   auto_markers:
-    - "[Done]"
-    - "[Failed]"
+    - "✅"
+    - "❌"
+    - "⏱️"
+    - "📊"
+    - "✅ Done"
+    - "❌ Failed"
     - "[Received]"
-    - "[Timeout]"
-    - "[Auto]"
