@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "imessage": {
-      "command": "python3",
-      "args": ["/Users/benson/Documents/incident/skills/imessage/imessage_skill.py"],
-      "description": "读取 iMessage 消息"
-    }
-  }
-}

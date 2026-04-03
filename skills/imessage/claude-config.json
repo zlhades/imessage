@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "imessage": {
+      "command": "node",
+      "args": ["/PATH/TO/imessage/src/mcp_server_claude.js"],
+      "cwd": "/PATH/TO/imessage"
+    }
+  }
+}
