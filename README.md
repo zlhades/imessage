@@ -266,3 +266,4 @@ npm test -- tests/e2e/file-mode.test.ts
 ---
 
 *最后更新：2026-03-19*
+# imessage
