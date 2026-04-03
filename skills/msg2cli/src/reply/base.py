@@ -2,7 +2,7 @@
 """
 msg2cli - Reply Base Class
 
-定义 IM 回复的统一接口。
+Defines the unified interface for IM reply.
 """
 
 from abc import ABC, abstractmethod
@@ -10,7 +10,7 @@ from typing import Dict, Any
 
 
 class BaseReply(ABC):
-    """回复基类"""
+    """Reply base class."""
 
     def __init__(self, config: Dict[str, Any]):
         self.config = config
@@ -19,20 +19,20 @@ class BaseReply(ABC):
 
     @abstractmethod
     def send(self, contact: str, message: str) -> bool:
-        """发送回复"""
+        """Send reply."""
         pass
 
     def send_quick(self, contact: str, text: str) -> bool:
-        """发送简短回复"""
+        """Send short reply."""
         return self.send(contact, text)
 
     def send_summary(self, contact: str, original: str, result: str, success: bool = True) -> bool:
-        """发送执行摘要"""
-        status = "✅" if success else "❌"
-        summary = f"{status} 执行完成\n\n指令：{original[:50]}\n结果：{result[:200]}"
+        """Send execution summary."""
+        status = "Done" if success else "Failed"
+        summary = f"[{status}]\n\nCommand: {original[:50]}\nResult: {result[:200]}"
         return self.send(contact, summary)
 
     def send_error(self, contact: str, command: str, error: str) -> bool:
-        """发送错误通知"""
-        msg = f"❌ 执行失败\n\n指令：{command}\n错误：{error[:200]}"
+        """Send error notification."""
+        msg = f"[Failed]\n\nCommand: {command}\nError: {error[:200]}"
         return self.send(contact, msg)

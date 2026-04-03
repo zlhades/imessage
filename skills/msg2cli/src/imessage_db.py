@@ -2,8 +2,8 @@
 """
 msg2cli - Database Module
 
-读取 macOS 消息数据库（iMessage/Slack 等），提供消息查询功能。
-支持 MCP Server 和自动监听器调用。
+Reads macOS message database, provides message query functions.
+Used by MCP Server and watcher.
 """
 
 import sqlite3
@@ -17,18 +17,18 @@ CHAT_DB_PATH = os.path.expanduser("~/Library/Messages/chat.db")
 
 
 def get_db_connection() -> sqlite3.Connection:
-    """连接到 iMessage 数据库"""
+    """Connect to iMessage database."""
     if not os.path.exists(CHAT_DB_PATH):
-        raise FileNotFoundError(f"找不到 iMessage 数据库：{CHAT_DB_PATH}")
+        raise FileNotFoundError(f"iMessage database not found: {CHAT_DB_PATH}")
     conn = sqlite3.connect(CHAT_DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
 
 def format_timestamp(timestamp: Optional[int]) -> str:
-    """将 iMessage 时间戳转换为可读格式"""
+    """Convert iMessage timestamp to human-readable format."""
     if not timestamp:
-        return "未知时间"
+        return "unknown"
     epoch = datetime(2001, 1, 1)
     seconds = timestamp / 1_000_000_000
     message_date = epoch + timedelta(seconds=seconds)
@@ -36,14 +36,14 @@ def format_timestamp(timestamp: Optional[int]) -> str:
 
 
 def clean_message_text(text: Optional[str]) -> str:
-    """清理消息文本"""
+    """Clean message text."""
     if not text or text.strip() == '':
-        return "[无内容]"
+        return "[no content]"
     return text
 
 
 def get_last_message(contact: str) -> Optional[Dict[str, Any]]:
-    """获取特定联系人的最后一条消息"""
+    """Get the last message from a contact."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -71,7 +71,7 @@ def get_last_message(contact: str) -> Optional[Dict[str, Any]]:
 
 
 def search_messages(contact: str, limit: int = 10) -> List[Dict[str, Any]]:
-    """搜索联系人的消息"""
+    """Search messages from a contact."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -98,7 +98,7 @@ def search_messages(contact: str, limit: int = 10) -> List[Dict[str, Any]]:
 
 
 def get_all_contacts() -> List[Dict[str, str]]:
-    """获取所有联系人列表"""
+    """Get contact list."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -121,7 +121,7 @@ def get_all_contacts() -> List[Dict[str, str]]:
 
 
 def analyze_instruction(text: str) -> Dict[str, Any]:
-    """分析消息中的指令类型"""
+    """Analyze instruction type in message."""
     analysis = {
         "has_instruction": False,
         "instruction_type": "unknown",
@@ -129,25 +129,35 @@ def analyze_instruction(text: str) -> Dict[str, Any]:
     }
 
     text_lower = text.lower()
-    if any(kw in text_lower for kw in ["创建", "create", "make", "新建"]):
-        analysis.update({"has_instruction": True, "instruction_type": "file_creation", "suggested_action": "创建文件"})
-    if any(kw in text_lower for kw in ["运行", "run", "执行", "execute"]):
-        analysis.update({"has_instruction": True, "instruction_type": "command_execution", "suggested_action": "运行命令"})
-    if any(kw in text_lower for kw in ["搜索", "search", "查找", "find"]):
-        analysis.update({"has_instruction": True, "instruction_type": "search", "suggested_action": "搜索内容"})
+    if any(kw in text_lower for kw in ["create", "make", "new file"]):
+        analysis.update({
+            "has_instruction": True,
+            "instruction_type": "file_creation",
+            "suggested_action": "Create file"
+        })
+    if any(kw in text_lower for kw in ["run", "execute", "command"]):
+        analysis.update({
+            "has_instruction": True,
+            "instruction_type": "command_execution",
+            "suggested_action": "Run command"
+        })
+    if any(kw in text_lower for kw in ["search", "find", "lookup"]):
+        analysis.update({
+            "has_instruction": True,
+            "instruction_type": "search",
+            "suggested_action": "Search content"
+        })
     if not analysis["has_instruction"]:
-        analysis["suggested_action"] = "请 AI 分析具体需求"
+        analysis["suggested_action"] = "Let AI analyze the request"
 
     return analysis
 
 
-# ============== 命令行接口 ==============
-
 def main():
-    """命令行：python3 imessage_db.py <command> [args]"""
+    """CLI: python3 imessage_db.py <command> [args]"""
     if len(sys.argv) < 2:
-        print("用法: python3 imessage_db.py <command> [args]")
-        print("命令: last, search, contacts, analyze")
+        print("Usage: python3 imessage_db.py <command> [args]")
+        print("Commands: last, search, contacts, analyze")
         sys.exit(1)
 
     command = sys.argv[1]
@@ -156,7 +166,7 @@ def main():
         if command == "last":
             contact = sys.argv[2] if len(sys.argv) > 2 else "zlhades@icloud.com"
             result = get_last_message(contact)
-            print(json.dumps(result if result else {"error": "未找到消息"}, ensure_ascii=False, indent=2))
+            print(json.dumps(result if result else {"error": "No messages found"}, ensure_ascii=False, indent=2))
 
         elif command == "search":
             contact = sys.argv[2] if len(sys.argv) > 2 else "zlhades@icloud.com"
@@ -174,7 +184,7 @@ def main():
             print(json.dumps(result, ensure_ascii=False, indent=2))
 
         else:
-            print(f"未知命令：{command}")
+            print(f"Unknown command: {command}")
             sys.exit(1)
 
     except Exception as e:

@@ -1,63 +1,63 @@
-# msg2cli 配置文件
+# msg2cli configuration file
 
-# 输入源
+# Input sources
 inputs:
   imessage:
     enabled: true
     contacts:
       - "zlhades@icloud.com"
       - "zlhades@hotmail.com"
-    check_interval: 3  # 轮询间隔（秒）
+    check_interval: 3
     db_path: "~/Library/Messages/chat.db"
 
-# 输出目标
+# Output targets
 outputs:
   qwen:
     enabled: true
     type: "tmux"
-    session: "ai_cli"       # tmux 会话名
+    session: "ai_cli"
     command: "qwen"
-    min_wait: 5             # 注入后最少等待秒数
-    capture_lines: 500      # 捕获输出行数
-    finished_markers:       # 完成标记
+    min_wait: 5
+    capture_lines: 500
+    finished_markers:
       - "for shortcuts"
       - "Would you like"
       - "Type your message"
-      - "已执行"
-      - "执行完成"
-      - "✅ Done"
+      - "Command completed"
+      - "Error:"
+      - "Exception:"
+      - "Command not found"
     error_markers:
       - "Error:"
       - "Exception:"
       - "Traceback (most recent call last)"
       - "Command not found"
 
-# 路由（固定：imessage → qwen）
+# Routing (fixed: imessage -> qwen)
 routing:
   default_output: "qwen"
 
-# 回复配置
+# Reply configuration
 reply:
   imessage:
     enabled: true
     reply_to: "zlhades@icloud.com"
-    max_length: 1000  # 单条消息最大长度
-    auto_reply_patterns:  # 自动回复模式（命中后不注入 AI）
-      - pattern: "测试"
-        response: "✅ 监听器正常工作"
-      - pattern: "回复 yes"
+    max_length: 1000
+    auto_reply_patterns:
+      - pattern: "test"
+        response: "[Auto] Watcher is working"
+      - pattern: "reply yes"
         response: "yes"
 
-# 全局设置
+# Global settings
 settings:
   log_file: "/tmp/msg2cli.log"
   done_file: "/tmp/msg2cli_done.txt"
-  auto_markers:  # 防死循环：忽略包含这些标记的消息
-    - "✅"
-    - "📊"
-    - "❌"
-    - "🚀"
-    - "👋"
-    - "[自动]"
-    - "执行完成"
-    - "收到："
+  # Anti-loop: any message containing these markers is ignored
+  # Must cover ALL reply prefixes to prevent infinite loops
+  auto_markers:
+    - "[Done]"
+    - "[Failed]"
+    - "[Received]"
+    - "[Timeout]"
+    - "[Auto]"

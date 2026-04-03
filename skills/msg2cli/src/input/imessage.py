@@ -2,7 +2,7 @@
 """
 msg2cli - iMessage Input
 
-从 macOS iMessage 数据库读取消息。
+Reads messages from macOS iMessage SQLite database.
 """
 
 import sqlite3
@@ -14,7 +14,7 @@ from .base import BaseInput, Message
 
 
 class IMessageInput(BaseInput):
-    """iMessage 输入源"""
+    """iMessage input source."""
 
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
@@ -22,7 +22,7 @@ class IMessageInput(BaseInput):
 
     def _get_connection(self) -> sqlite3.Connection:
         if not os.path.exists(self.db_path):
-            raise FileNotFoundError(f"找不到 iMessage 数据库：{self.db_path}")
+            raise FileNotFoundError(f"iMessage database not found: {self.db_path}")
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn
@@ -30,14 +30,14 @@ class IMessageInput(BaseInput):
     @staticmethod
     def _format_timestamp(timestamp: Optional[int]) -> str:
         if not timestamp:
-            return "未知时间"
+            return "unknown"
         epoch = datetime(2001, 1, 1)
         seconds = timestamp / 1_000_000_000
         message_date = epoch + timedelta(seconds=seconds)
         return message_date.strftime("%Y-%m-%d %H:%M:%S")
 
     def get_last_message(self) -> Optional[Message]:
-        """获取所有监听联系人的最后一条消息"""
+        """Get the last message from all monitored contacts."""
         if not os.path.exists(self.db_path):
             return None
 
@@ -60,14 +60,14 @@ class IMessageInput(BaseInput):
 
         return Message(
             id=row["rowid"],
-            text=row["text"] if row["text"] else "[无内容]",
+            text=row["text"] if row["text"] else "[no content]",
             sender=row["handle_id"],
             timestamp=row["date"],
             is_from_me=bool(row["is_from_me"])
         )
 
     def search_messages(self, contact: str, limit: int = 10) -> List[Message]:
-        """搜索指定联系人的消息"""
+        """Search messages from a specific contact."""
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute("""
@@ -83,7 +83,7 @@ class IMessageInput(BaseInput):
         for row in cursor.fetchall():
             results.append(Message(
                 id=row["rowid"],
-                text=row["text"] if row["text"] else "[无内容]",
+                text=row["text"] if row["text"] else "[no content]",
                 sender=row["handle_id"],
                 timestamp=row["date"],
                 is_from_me=bool(row["is_from_me"])
@@ -92,7 +92,7 @@ class IMessageInput(BaseInput):
         return results
 
     def get_contacts(self) -> List[Dict[str, str]]:
-        """获取联系人列表"""
+        """Get contact list."""
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute("""

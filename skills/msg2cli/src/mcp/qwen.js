@@ -2,12 +2,12 @@
 /**
  * msg2cli - MCP Server for Qwen Code
  *
- * 工具列表：
- * - msg_read:     读取联系人的最后一条消息
- * - msg_search:   搜索联系人的消息
- * - msg_auto:     读取所有监听联系人的最新消息
- * - msg_execute:  读取最新消息 + 分析是否包含可执行指令
- * - msg_status:   获取 msg2cli 运行状态
+ * Tools:
+ * - msg_read:     Read the last message from a contact
+ * - msg_search:   Search messages from a contact
+ * - msg_auto:     Read latest messages from all monitored contacts
+ * - msg_execute:  Read latest message + analyze for executable instructions
+ * - msg_status:   Get msg2cli runtime status (logs/stats/config)
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -27,52 +27,48 @@ const CONTACTS = ['zlhades@icloud.com', 'zlhades@hotmail.com'];
 const TOOLS = [
   {
     name: 'msg_read',
-    description: '读取指定联系人的最后一条消息',
+    description: 'Read the last message from a contact',
     inputSchema: {
       type: 'object',
-      properties: {
-        contact: { type: 'string', description: '联系人邮箱/电话' }
-      },
+      properties: { contact: { type: 'string', description: 'Contact email/phone' } },
       required: ['contact']
     }
   },
   {
     name: 'msg_search',
-    description: '搜索联系人的消息历史记录',
+    description: 'Search message history from a contact',
     inputSchema: {
       type: 'object',
       properties: {
-        contact: { type: 'string', description: '联系人邮箱/电话' },
-        limit: { type: 'number', default: 5, description: '返回条数' }
+        contact: { type: 'string', description: 'Contact email/phone' },
+        limit: { type: 'number', default: 5, description: 'Number of results' }
       },
       required: ['contact']
     }
   },
   {
     name: 'msg_auto',
-    description: '读取所有监听联系人的最新消息',
+    description: 'Read latest messages from all monitored contacts',
     inputSchema: { type: 'object', properties: {} }
   },
   {
     name: 'msg_execute',
-    description: '读取最新消息并分析是否包含可执行指令（运行/创建/执行等）',
+    description: 'Read latest message and analyze for executable instructions (run/create/execute etc.)',
     inputSchema: {
       type: 'object',
-      properties: {
-        contact: { type: 'string', description: '联系人邮箱/电话' }
-      },
+      properties: { contact: { type: 'string', description: 'Contact email/phone' } },
       required: ['contact']
     }
   },
   {
     name: 'msg_status',
-    description: '获取 msg2cli 运行状态（日志/统计/配置）',
+    description: 'Get msg2cli runtime status (log tail, stats, config)',
     inputSchema: { type: 'object', properties: {} }
   }
 ];
 
 /**
- * 运行 Python 代码读取 iMessage
+ * Run Python code to read iMessage.
  */
 function runPython(method, args = []) {
   const config = JSON.stringify({
@@ -96,7 +92,7 @@ print(json.dumps(result, default=str, ensure_ascii=False))
   });
 
   if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(result.stderr?.trim() || 'Python 执行失败');
+  if (result.status !== 0) throw new Error(result.stderr?.trim() || 'Python execution failed');
 
   try {
     return JSON.parse(result.stdout.trim());
@@ -106,29 +102,26 @@ print(json.dumps(result, default=str, ensure_ascii=False))
 }
 
 /**
- * 分析消息中是否包含可执行指令
+ * Analyze whether a message contains executable instructions.
  */
 function analyzeInstruction(text) {
   if (!text) return { has_instruction: false, type: 'none', confidence: 0 };
 
   const patterns = [
-    { type: 'shell_command', patterns: [/运行\s*(.+)/, /执行\s*(.+)/, /run\s+(.+)/i, /execute\s+(.+)/i] },
-    { type: 'file_create', patterns: [/创建文件\s*(.+)/, /create file\s+(.+)/i, /新建文件\s*(.+)/] },
-    { type: 'search', patterns: [/搜索\s*(.+)/, /查找\s*(.+)/, /search\s+(.+)/i, /find\s+(.+)/i] },
-    { type: 'general', patterns: [/帮我?\s*(.+)/, /请\s*(.+)/] },
+    { type: 'shell_command', regex: /(run|execute)\s+(.+)/i },
+    { type: 'file_create', regex: /create file\s+(.+)/i },
+    { type: 'search', regex: /(search|find|lookup)\s+(.+)/i },
   ];
 
-  for (const { type, patterns: pats } of patterns) {
-    for (const pat of pats) {
-      const match = text.match(pat);
-      if (match) {
-        return {
-          has_instruction: true,
-          type,
-          extracted: match[1]?.trim() || text,
-          confidence: type === 'shell_command' ? 0.9 : type === 'file_create' ? 0.85 : 0.6,
-        };
-      }
+  for (const { type, regex } of patterns) {
+    const match = text.match(regex);
+    if (match) {
+      return {
+        has_instruction: true,
+        type,
+        extracted: match[2]?.trim() || match[1]?.trim() || text,
+        confidence: type === 'shell_command' ? 0.9 : type === 'file_create' ? 0.85 : 0.6,
+      };
     }
   }
 
@@ -136,7 +129,7 @@ function analyzeInstruction(text) {
 }
 
 /**
- * 获取 msg2cli 状态
+ * Get msg2cli runtime status.
  */
 function getStatus() {
   const logFile = '/tmp/msg2cli.log';
@@ -204,27 +197,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'msg_execute': {
         const msg = runPython('get_last_message');
         const analysis = analyzeInstruction(msg?.text || '');
-        const result = {
-          message: msg,
-          analysis,
-          recommendation: analysis.has_instruction
-            ? `检测到 ${analysis.type} 类型指令，可以注入到 AI CLI 执行`
-            : '未检测到明确指令，建议人工判断'
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({ message: msg, analysis }, null, 2)
+          }]
         };
-        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
       }
 
       case 'msg_status': {
-        const status = getStatus();
-        return { content: [{ type: 'text', text: JSON.stringify(status, null, 2) }] };
+        return { content: [{ type: 'text', text: JSON.stringify(getStatus(), null, 2) }] };
       }
 
       default:
-        throw new Error(`未知工具：${name}`);
+        throw new Error(`Unknown tool: ${name}`);
     }
   } catch (error) {
     return {
-      content: [{ type: 'text', text: `错误：${error.message}` }],
+      content: [{ type: 'text', text: `Error: ${error.message}` }],
       isError: true
     };
   }
@@ -233,10 +223,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('msg2cli MCP Server (Qwen) v3.0.0 已启动');
+  console.error('msg2cli MCP Server (Qwen) v3.0.0 started');
 }
 
 main().catch((error) => {
-  console.error('服务器错误:', error);
+  console.error('Server error:', error);
   process.exit(1);
 });

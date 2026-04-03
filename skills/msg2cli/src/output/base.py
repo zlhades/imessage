@@ -2,18 +2,17 @@
 """
 msg2cli - Output Base Class
 
-定义 AI CLI 输出的统一接口。
-所有输出目标（Qwen/CodeX/CloudCode）需继承此类。
+Defines the unified interface for AI CLI output targets.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from dataclasses import dataclass
 
 
 @dataclass
 class ExecutionResult:
-    """执行结果"""
+    """Execution result."""
     success: bool
     output: str
     error: str = ""
@@ -21,7 +20,7 @@ class ExecutionResult:
 
 
 class BaseOutput(ABC):
-    """AI CLI 输出基类"""
+    """AI CLI output base class."""
 
     def __init__(self, config: Dict[str, Any]):
         self.config = config
@@ -33,15 +32,15 @@ class BaseOutput(ABC):
 
     @abstractmethod
     def inject(self, text: str) -> bool:
-        """将消息注入到 AI CLI"""
+        """Inject message into AI CLI."""
         pass
 
     @abstractmethod
     def is_finished(self) -> tuple:
-        """检查 AI 是否完成执行，返回 (finished, output)"""
+        """Check if AI has finished, returns (finished, output)."""
         pass
 
     @abstractmethod
     def get_output(self) -> str:
-        """获取 AI 的输出"""
+        """Get AI output."""
         pass

@@ -2,7 +2,7 @@
 """
 msg2cli - iMessage Reply
 
-通过 AppleScript 发送 iMessage 回复。
+Sends iMessage replies via AppleScript.
 """
 
 import subprocess
@@ -12,7 +12,7 @@ from .base import BaseReply
 
 
 class IMessageReply(BaseReply):
-    """iMessage 回复"""
+    """iMessage reply."""
 
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
@@ -20,7 +20,7 @@ class IMessageReply(BaseReply):
         self.max_message_length = config.get("max_length", 1000)
 
     def send(self, contact: str, message: str) -> bool:
-        """发送 iMessage"""
+        """Send iMessage."""
         try:
             clean_msg = self._escape_applescript(message)
             result = subprocess.run([
@@ -36,25 +36,25 @@ class IMessageReply(BaseReply):
             return False
 
     def send_summary(self, contact: str, original: str, result: str, success: bool = True) -> bool:
-        """发送执行摘要"""
-        status = "✅ 执行完成" if success else "❌ 执行失败"
+        """Send execution summary."""
+        status = "Done" if success else "Failed"
         cmd_short = original[:40] + ("..." if len(original) > 40 else "")
-        result_short = result[:300] + ("\n...(已截断)" if len(result) > 300 else "")
+        result_short = result[:300] + ("\n...(truncated)" if len(result) > 300 else "")
 
-        msg = f"{status}\n\n📋 指令：{cmd_short}\n\n{result_short}"
+        msg = f"[{status}]\n\nCmd: {cmd_short}\n\n{result_short}"
         if len(msg) > self.max_message_length:
             msg = msg[:self.max_message_length - 10] + "..."
         return self.send(contact, msg)
 
     def send_error(self, contact: str, command: str, error: str) -> bool:
-        """发送错误通知"""
+        """Send error notification."""
         cmd_short = command[:40] + ("..." if len(command) > 40 else "")
         err_short = error[:200]
-        msg = f"❌ 执行失败\n\n📋 指令：{cmd_short}\n\n💥 错误：{err_short}"
+        msg = f"[Failed]\n\nCmd: {cmd_short}\n\nErr: {err_short}"
         return self.send(contact, msg)
 
     def _escape_applescript(self, text: str) -> str:
-        """转义 AppleScript 特殊字符"""
+        """Escape AppleScript special characters."""
         return (
             text
             .replace('\\', '\\\\')
@@ -65,7 +65,7 @@ class IMessageReply(BaseReply):
         )
 
     def get_status(self) -> Dict[str, Any]:
-        """获取状态"""
+        """Get status."""
         return {
             "enabled": self.enabled,
             "reply_to": self.reply_to,
