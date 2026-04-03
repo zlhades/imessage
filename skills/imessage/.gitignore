@@ -2,3 +2,7 @@ node_modules/
 *.log
 .DS_Store
 .env
+
+# Personal config files (each user should copy the .example files)
+*.json
+!package.json
