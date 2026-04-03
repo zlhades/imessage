@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "msg2cli": {
+      "command": "node",
+      "args": ["/PATH/TO/msg2cli/src/mcp/claud.js"],
+      "cwd": "/PATH/TO/msg2cli"
+    }
+  }
+}

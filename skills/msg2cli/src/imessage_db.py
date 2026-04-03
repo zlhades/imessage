@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-iMessage Database Module
+msg2cli - Database Module
 
-读取 macOS iMessage 数据库，提供消息查询功能。
+读取 macOS 消息数据库（iMessage/Slack 等），提供消息查询功能。
 支持 MCP Server 和自动监听器调用。
 """
 

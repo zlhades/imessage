@@ -1,0 +1,9 @@
+{
+  "name": "msg2cli",
+  "version": "3.0.0",
+  "description": "IM → AI CLI bridge - send messages from iMessage/Slack to Qwen/CodeX/CloudCode",
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}

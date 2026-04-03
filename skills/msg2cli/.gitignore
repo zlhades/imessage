@@ -1,0 +1,9 @@
+node_modules/
+*.log
+.DS_Store
+.env
+
+# Personal config (copy .example files instead)
+config/config.local.yaml
+*.json
+!package.json
