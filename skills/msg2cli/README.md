@@ -1,91 +1,104 @@
 # msg2cli - IM → AI CLI 桥接工具
 
-从手机 IM（iMessage/Slack/微信等）发送消息，直接注入到 AI CLI（Qwen/CodeX/CloudCode）并行执行。
+从手机 IM（iMessage）发送消息，直接注入到 AI CLI（Qwen Code）执行，结果自动回复回手机。
 
-## 📁 项目结构
+## 工作流程
 
 ```
-msg2cli/
-├── src/
-│   ├── input/              # 输入源
-│   │   ├── base.py         # 输入基类
-│   │   ├── imessage.py     # iMessage 输入
-│   │   └── slack.py        # Slack 输入（预留）
-│   ├── output/             # 输出目标（AI CLI）
-│   │   ├── base.py         # 输出基类
-│   │   ├── qwen.py         # 通义千问
-│   │   ├── codex.py        # CodeX（预留）
-│   │   └── cloudcode.py    # CloudCode（预留）
-│   ├── reply/              # 回复输出
-│   │   ├── base.py         # 回复基类
-│   │   └── imessage.py     # iMessage 回复
-│   ├── mcp/                # MCP 服务器
-│   │   ├── qwen.js         # Qwen Code
-│   │   └── claude.js       # Claude Desktop
-│   ├── watcher.py          # 监听器（input → output → reply）
-│   └── injector.py         # tmux 注入器
-├── config/
-│   └── config.yaml         # YAML 配置
-├── tests/
-│   └── test_all.py         # 完整测试套件
-├── docs/                   # 文档
-├── claude-config.json.example
-├── package.json
-└── README.md
+📱 手机发送 iMessage 到 zlhades@icloud.com
+    ↓
+💻 watcher.py 每 3 秒轮询 ~/Library/Messages/chat.db
+    ↓
+🤖 消息注入到 tmux 中的 Qwen Code 会话
+    ↓
+📤 执行结果通过 AppleScript 回复到手机 iMessage
 ```
 
-## 🚀 快速开始
+## 快速开始
 
 ### 1. 安装依赖
+
 ```bash
-npm install
+# Python 依赖
 pip3 install pyyaml pytest
+
+# Node.js 依赖（如需 MCP Server）
+npm install
 ```
 
-### 2. 编辑配置
-```bash
-cp config/config.yaml config/config.local.yaml
-# 编辑 config.local.yaml 修改你的联系人和路径
-```
+### 2. 配置
 
-### 3. 启动监听器
+编辑 `config/config.yaml`：
+- `inputs.imessage.contacts` — 监听的联系人
+- `outputs.qwen.session` — Qwen Code 的 tmux 会话名
+- `reply.imessage.auto_reply_patterns` — 自动回复规则（不注入 AI）
+
+### 3. 启动
+
 ```bash
+# 先启动 Qwen Code 的 tmux 会话
+tmux new-session -d -s ai_cli
+tmux send-keys -t ai_cli "qwen" Enter
+
+# 再启动 Watcher
 python3 src/watcher.py
 ```
 
-### 4. 运行测试
+### 4. 使用
+
+从手机发送 iMessage 到 `zlhades@icloud.com`：
+- `运行 ls -la` → 注入到 Qwen 执行 → 结果回复到手机
+- `测试` → 自动回复 "✅ 监听器正常工作"（不注入 AI）
+
+## 架构
+
+```
+src/
+├── input/
+│   ├── base.py         # 输入基类
+│   └── imessage.py     # iMessage SQLite 读取
+├── output/
+│   ├── base.py         # 输出基类
+│   └── qwen.py         # tmux 注入 + 完成检测
+├── reply/
+│   ├── base.py         # 回复基类
+│   └── imessage.py     # AppleScript 发送
+├── injector.py         # tmux 注入器（独立使用）
+├── watcher.py          # 主循环（轮询→注入→回复）
+├── imessage_db.py      # iMessage 数据库工具
+└── mcp/
+    └── qwen.js         # MCP Server（5 个工具）
+```
+
+## MCP Server 工具
+
+| 工具 | 说明 |
+|------|------|
+| `msg_read` | 读取联系人的最后一条消息 |
+| `msg_search` | 搜索联系人的消息 |
+| `msg_auto` | 读取所有监听联系人的最新消息 |
+| `msg_execute` | 读取最新消息 + 分析是否包含可执行指令 |
+| `msg_status` | 获取 msg2cli 运行状态（日志/统计） |
+
+## 核心特性
+
+- ✅ iMessage SQLite 实时读取
+- ✅ tmux 注入 Qwen Code
+- ✅ AppleScript 自动回复
+- ✅ 自动回复模式（不注入 AI）
+- ✅ 防死循环（忽略自动回复消息）
+- ✅ 可配置完成/错误标记
+- ✅ 执行超时检测（2 分钟）
+- ✅ MCP Server 集成
+
+## 运行测试
+
 ```bash
 cd tests && python3 -m pytest test_all.py -v
 ```
 
-## 🔄 工作流程
-
-```
-📱 手机发送 IM 消息（iMessage/Slack）
-    ↓
-💻 本地消息数据库更新
-    ↓
-🔍 watcher.py 轮询检测新消息
-    ↓
-🤖 注入到 AI CLI（Qwen/CodeX/CloudCode）
-    ↓
-📤 回复结果到 IM
-```
-
-## ⚙️ 配置
-
-编辑 `config/config.yaml`：
-- `inputs`: 输入源（iMessage/Slack）
-- `outputs`: 输出目标（Qwen/CodeX/CloudCode）
-- `routing`: 路由规则（哪个输入 → 哪个输出）
-- `reply`: 回复配置
-
-## 📊 资源占用
+## 资源占用
 
 - CPU: ~1.5%
 - 内存: ~13.5 MB
 - 适合 7×24 长期运行
-
-## 📖 详细文档
-
-查看 `docs/` 文件夹获取完整的使用指南、架构说明和测试报告。

@@ -1,6 +1,6 @@
 # msg2cli 配置文件
 
-# 输入源配置
+# 输入源
 inputs:
   imessage:
     enabled: true
@@ -8,53 +8,41 @@ inputs:
       - "zlhades@icloud.com"
       - "zlhades@hotmail.com"
     check_interval: 3  # 轮询间隔（秒）
-    db_path: "~/Library/Messages/chat.db"  # macOS iMessage 数据库路径
+    db_path: "~/Library/Messages/chat.db"
 
-  # slack:
-  #   enabled: false
-  #   token: "xoxb-your-bot-token"
-  #   channels:
-  #     - "commands"
-  #   check_interval: 5
-
-# 输出目标（AI CLI）
+# 输出目标
 outputs:
   qwen:
     enabled: true
-    type: "tmux"           # tmux | direct
-    session: "ai_cli"      # tmux 会话名
-    command: "qwen"        # CLI 命令
-    prompt_suffix: |       # 注入消息后追加的 Prompt
-      【执行后请回复】
-      请在执行完成后说明执行结果。
+    type: "tmux"
+    session: "ai_cli"       # tmux 会话名
+    command: "qwen"
+    min_wait: 5             # 注入后最少等待秒数
+    capture_lines: 500      # 捕获输出行数
+    finished_markers:       # 完成标记
+      - "for shortcuts"
+      - "Would you like"
+      - "Type your message"
+      - "已执行"
+      - "执行完成"
+      - "✅ Done"
+    error_markers:
+      - "Error:"
+      - "Exception:"
+      - "Traceback (most recent call last)"
+      - "Command not found"
 
-  # codex:
-  #   enabled: false
-  #   type: "tmux"
-  #   session: "codex_cli"
-  #   command: "codex"
-
-  # cloudcode:
-  #   enabled: false
-  #   type: "tmux"
-  #   session: "cloudcode_cli"
-  #   command: "cloudcode"
-
-# 路由规则（输入 → 输出）
+# 路由（固定：imessage → qwen）
 routing:
-  default_output: "qwen"   # 默认输出目标
-  # rules:
-  #   - input: "slack"
-  #     output: "codex"
-  #   - input: "imessage"
-  #     output: "qwen"
+  default_output: "qwen"
 
 # 回复配置
 reply:
   imessage:
     enabled: true
-    reply_to: "zlhades@icloud.com"  # 统一回复到这个联系人
-    auto_reply_patterns:            # 简单自动回复模式
+    reply_to: "zlhades@icloud.com"
+    max_length: 1000  # 单条消息最大长度
+    auto_reply_patterns:  # 自动回复模式（命中后不注入 AI）
       - pattern: "测试"
         response: "✅ 监听器正常工作"
       - pattern: "回复 yes"
@@ -64,7 +52,7 @@ reply:
 settings:
   log_file: "/tmp/msg2cli.log"
   done_file: "/tmp/msg2cli_done.txt"
-  auto_markers:                    # 防死循环标记
+  auto_markers:  # 防死循环：忽略包含这些标记的消息
     - "✅"
     - "📊"
     - "❌"
