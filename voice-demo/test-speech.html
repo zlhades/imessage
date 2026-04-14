@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 语音识别诊断</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'SF Mono', 'Fira Code', monospace; background: #0d1117; color: #c9d1d9; padding: 20px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { color: #58a6ff; margin-bottom: 20px; }
+        .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+        .card h2 { color: #3fb950; margin-bottom: 10px; font-size: 1.1em; }
+        .alert { padding: 12px 15px; border-radius: 6px; margin: 10px 0; font-size: 0.9em; }
+        .alert-info { background: #0c2d6b; border: 1px solid #1f6feb; color: #58a6ff; }
+        .alert-success { background: #0d2818; border: 1px solid #238636; color: #7ee787; }
+        .alert-warn { background: #2a1f04; border: 1px solid #9e6a03; color: #e3b341; }
+        .alert-danger { background: #2d1214; border: 1px solid #f85149; color: #f85149; }
+        .btn { padding: 10px 18px; border: none; border-radius: 6px; font-size: 0.95em; cursor: pointer; margin: 5px; font-family: inherit; }
+        .btn-primary { background: #238636; color: white; }
+        .btn-primary:hover { background: #2ea043; }
+        .btn-secondary { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
+        .btn-secondary:hover { background: #30363d; }
+        #log { background: #010409; border: 1px solid #30363d; border-radius: 6px; padding: 12px; max-height: 300px; overflow-y: auto; font-size: 0.8em; }
+        #log div { padding: 2px 0; border-bottom: 1px solid #161b22; }
+        .log-info { color: #58a6ff; }
+        .log-success { color: #3fb950; }
+        .log-error { color: #f85149; }
+        .log-warn { color: #d29922; }
+        .log-event { color: #bc8cff; }
+        .result-box { background: #0d1117; padding: 10px; border-radius: 6px; min-height: 40px; margin-top: 10px; }
+        code { background: #30363d; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 AI 语音输入诊断</h1>
+        
+        <div class="alert alert-info">
+            💡 语音识别需要连接服务器。如果你在中国大陆，Chrome 可能无法连接谷歌服务器。
+        </div>
+
+        <!-- 诊断结果 -->
+        <div class="card" id="resultCard" style="display:none;"></div>
+
+        <!-- 测试控制 -->
+        <div class="card">
+            <h2>语音识别测试</h2>
+            <button class="btn btn-primary" id="startBtn" onclick="startTest()">▶️ 开始测试</button>
+            <button class="btn btn-secondary" id="stopBtn" onclick="stopTest()" disabled>⏹️ 停止</button>
+            <div class="result-box" id="resultBox">等待测试...</div>
+        </div>
+
+        <!-- 日志 -->
+        <div class="card">
+            <h2>调试日志</h2>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const logDiv = document.getElementById('log');
+        const resultBox = document.getElementById('resultBox');
+        const resultCard = document.getElementById('resultCard');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+
+        function log(type, msg) {
+            const time = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = 'log-' + type;
+            div.textContent = `[${time}] ${msg}`;
+            logDiv.appendChild(div);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`[${type}] ${msg}`);
+        }
+
+        // 检测网络
+        async function checkNetwork() {
+            log('info', '检查网络连通性...');
+            
+            // 检查是否能访问 Google
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3000);
+                
+                await fetch('https://www.google.com', { mode: 'no-cors', signal: controller.signal });
+                clearTimeout(timeoutId);
+                log('success', '✅ 可以访问 Google');
+                return true;
+            } catch (e) {
+                log('warn', '⚠️ 无法访问 Google（这在中国大陆很常见）');
+                return false;
+            }
+        }
+
+        // 主诊断
+        (async function() {
+            log('info', '=== 开始诊断 ===');
+            
+            const SR = window.SpeechRecognition || window.webkitSpeechSpeechRecognition;
+            const canAccessGoogle = await checkNetwork();
+            
+            let diagnosis = '';
+            let hasProblem = false;
+
+            if (!SR) {
+                diagnosis = `<div class="alert alert-danger">❌ 浏览器不支持语音识别 API<br>请使用 Chrome 或 Edge 浏览器</div>`;
+                hasProblem = true;
+            } else if (!canAccessGoogle && /Chrome/.test(navigator.userAgent) && !/Edg/.test(navigator.userAgent)) {
+                // Chrome 但无法访问 Google
+                diagnosis = `<div class="alert alert-danger">
+                    ❌ <strong>问题定位：Chrome 无法连接谷歌服务器</strong><br><br>
+                    这是你语音识别不工作的根本原因。<br>
+                    Chrome 的语音识别需要连接到 <code>google.com</code> 的服务器，但在中国大陆通常无法访问。<br><br>
+                    <strong>✅ 解决方案：</strong><br>
+                    1. 使用 <strong>Microsoft Edge</strong> 浏览器（推荐，使用微软服务器，国内可用）<br>
+                    2. 或者开启网络代理后重试<br>
+                    3. 或者等待我们在 Python 后端接入本地语音识别（Whisper）
+                </div>`;
+                hasProblem = true;
+            } else if (!canAccessGoogle) {
+                diagnosis = `<div class="alert alert-warn">⚠️ 网络可能不通，语音识别可能无法工作</div>`;
+            } else {
+                diagnosis = `<div class="alert alert-success">✅ 环境检测通过，可以开始语音识别测试</div>`;
+            }
+
+            resultCard.style.display = 'block';
+            resultCard.innerHTML = `<h2>诊断结果</h2>${diagnosis}`;
+            log('info', '=== 诊断完成 ===');
+        })();
+
+        // 语音识别测试
+        let recognition = null;
+        let hasResult = false;
+        let hasError = false;
+        let hasEnd = false;
+
+        function startTest() {
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SR) { alert('浏览器不支持'); return; }
+
+            log('info', '开始测试...');
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            resultBox.textContent = '识别中，请说话...';
+            hasResult = false;
+            hasError = false;
+            hasEnd = false;
+
+            recognition = new SR();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'zh-CN';
+
+            // 详细事件监听
+            const events = ['start', 'end', 'error', 'result', 'soundstart', 'soundend', 'audiostart', 'audioend', 'speechstart', 'speechend', 'nomatch'];
+            events.forEach(evt => {
+                recognition.addEventListener(evt, (e) => {
+                    let detail = '';
+                    if (evt === 'result') {
+                        hasResult = true;
+                        const r = e.results;
+                        detail = ` ${r.length}条结果, 最后一句:"${r[r.length-1][0].transcript}"`;
+                        resultBox.innerHTML = `<span style="color:#3fb950;">✅ 识别成功: ${r[r.length-1][0].transcript}</span>`;
+                    } else if (evt === 'error') {
+                        hasError = true;
+                        detail = ` ${e.error} - ${e.message || '无'}`;
+                        resultBox.innerHTML = `<span style="color:#f85149;">❌ 错误: ${e.error}</span>`;
+                    } else if (evt === 'end') {
+                        hasEnd = true;
+                        detail = '';
+                    }
+                    log('event', `📢 on${evt}${detail}`);
+                });
+            });
+
+            try {
+                recognition.start();
+                log('info', 'recognition.start() 成功');
+            } catch (e) {
+                log('error', 'start() 失败: ' + e.message);
+            }
+
+            // 5秒后自动检查
+            setTimeout(() => {
+                if (!hasResult && !hasError && !hasEnd) {
+                    log('warn', '⚠️ 5秒内无任何回调触发，说明网络无法连接语音识别服务器');
+                    resultBox.innerHTML = `<span style="color:#d29922;">⚠️ 5秒无响应，网络可能不通。请使用 Edge 浏览器或检查代理。</span>`;
+                }
+            }, 5000);
+        }
+
+        function stopTest() {
+            if (recognition) {
+                try { recognition.stop(); } catch (e) {}
+            }
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            
+            if (!hasResult && !hasError) {
+                resultBox.innerHTML = `<span style="color:#d29922;">⚠️ 未识别到语音。请查看上方的诊断结果。</span>`;
+            }
+            log('info', '测试结束');
+        }
+    </script>
+</body>
+</html>

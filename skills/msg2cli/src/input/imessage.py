@@ -49,6 +49,7 @@ class IMessageInput(BaseInput):
             FROM message m
             LEFT JOIN handle h ON m.handle_id = h.rowid
             WHERE h.id IN ({placeholders})
+              AND m.is_from_me = 0
             ORDER BY m.date DESC
             LIMIT 1
         """, self.contacts)

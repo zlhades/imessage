@@ -88,6 +88,7 @@ class Watcher:
         if os.path.exists(self.done_file):
             self.done = set(open(self.done_file).read().strip().split('\n'))
 
+        self.last_msg_id: Optional[int] = None
         self.last_msg_text: Optional[str] = None
         self.stats = {"total": 0, "auto_reply": 0, "ai_inject": 0, "skipped": 0}
 
@@ -109,7 +110,11 @@ class Watcher:
         """Check if this is a new message."""
         if not msg or msg.is_from_me:
             return False
+        if msg.id == self.last_msg_id:
+            return False
         if msg.text == self.last_msg_text:
+            return False
+        if str(msg.id) in self.done:
             return False
         if msg.text in self.done:
             return False
@@ -117,8 +122,9 @@ class Watcher:
             return False
         return True
 
-    def mark_done(self, text: str):
+    def mark_done(self, msg_id: int, text: str):
         """Mark message as processed."""
+        self.done.add(str(msg_id))
         self.done.add(text)
         if len(self.done) > 1000:
             self.done = set(list(self.done)[-500:])
@@ -128,18 +134,24 @@ class Watcher:
         except OSError:
             pass
 
-    def mark_reply_done(self, contact: str, original_text: str, reply_text: str):
+    def mark_reply_done(self, msg_id: int, contact: str, original_text: str, reply_text: str):
         """Mark both original and reply text as done, to prevent loop.
 
         When the bot sends a reply via AppleScript, the reply may appear
         in the iMessage DB as a new message (is_from_me=0). We save both
         the original and a truncated reply prefix to the done set.
+
+        Note: AppleScript escapes newlines to spaces, so we save both versions.
         """
+        self.done.add(str(msg_id))
         self.done.add(original_text)
         # Save reply prefix so we skip the reply when it appears in DB
         reply_prefix = reply_text[:60]
         self.done.add(reply_prefix)
         self.done.add(reply_text)
+        # AppleScript version (newlines → spaces)
+        self.done.add(reply_text.replace('\n', ' ')[:60])
+        self.done.add(reply_text.replace('\n', ' '))
         if len(self.done) > 1000:
             self.done = set(list(self.done)[-500:])
         try:
@@ -161,12 +173,14 @@ class Watcher:
 
         last = self.input.get_last_message()
         if last:
+            self.last_msg_id = last.id
             self.last_msg_text = last.text
             self.log(f"Initial message: {last.text[:50]}...")
 
         self.log("Starting watcher...")
         pending_text = None
         pending_contact = None
+        pending_msg_id = None
         pending_start = None
         check_count = 0
 
@@ -184,7 +198,8 @@ class Watcher:
                     if auto_response:
                         self.log(f"Auto-reply: {auto_response}")
                         self.reply.send(msg.sender, auto_response)
-                        self.mark_done(msg.text)
+                        self.mark_reply_done(msg.id, msg.sender, msg.text, auto_response)
+                        self.last_msg_id = msg.id
                         self.last_msg_text = msg.text
                         self.stats["auto_reply"] += 1
                         self.stats["total"] += 1
@@ -195,10 +210,12 @@ class Watcher:
                         self.log(f"Injected into {self.output.session}")
                         reply_text = f"✅ Received: {msg.text[:30]}..."
                         self.reply.send(msg.sender, reply_text)
-                        self.mark_reply_done(msg.sender, msg.text, reply_text)
+                        self.mark_reply_done(msg.id, msg.sender, msg.text, reply_text)
+                        self.last_msg_id = msg.id
                         self.last_msg_text = msg.text
                         pending_text = msg.text
                         pending_contact = msg.sender
+                        pending_msg_id = msg.id
                         pending_start = time.time()
                         self.stats["ai_inject"] += 1
                         self.stats["total"] += 1
@@ -206,7 +223,7 @@ class Watcher:
                         self.log("Injection failed")
                         reply_text = "❌ Injection failed. Check AI CLI status"
                         self.reply.send(msg.sender, reply_text)
-                        self.mark_reply_done(msg.sender, msg.text, reply_text)
+                        self.mark_reply_done(msg.id, msg.sender, msg.text, reply_text)
                         self.stats["skipped"] += 1
 
                 # 4. Check if AI finished
@@ -228,9 +245,10 @@ class Watcher:
                         elif elapsed > 120:
                             reply_text = "⏱️ Timeout: >2 minutes, check AI CLI status"
                             self.reply.send(pending_contact, reply_text)
-                            self.mark_reply_done(pending_contact, pending_text, reply_text)
+                            self.mark_reply_done(pending_msg_id, pending_contact, pending_text, reply_text)
                             self.log("Timeout")
                             pending_text = None
+                            pending_msg_id = None
                             pending_start = None
 
                 # 5. Periodic status log

@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AI 语音输入</title>
+
+    <!-- PWA 元数据 -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="语音输入">
+    <link rel="apple-touch-icon" href="icon.svg">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+
+    <style>
+        /* ========== 基础样式 ========== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { touch-action: manipulation; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; min-height: 100dvh;
+            padding: 20px 16px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .container { max-width: 750px; margin: 0 auto; padding-bottom: env(safe-area-inset-bottom); }
+
+        /* ========== 标题区域 ========== */
+        h1 { color: white; text-align: center; font-size: 1.8em; margin-bottom: 6px; }
+        .subtitle { color: rgba(255,255,255,0.85); text-align: center; margin-bottom: 16px; font-size: 0.95em; }
+
+        /* ========== 卡片 ========== */
+        .card {
+            background: white; border-radius: 16px; padding: 20px;
+            margin-bottom: 14px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .card h3 { color: #333; margin-bottom: 10px; font-size: 1.05em; display: flex; align-items: center; justify-content: space-between; }
+
+        /* ========== 录音区域 ========== */
+        .record-area { text-align: center; padding: 15px 0; }
+        .record-btn {
+            width: 90px; height: 90px; border-radius: 50%; border: none;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white; font-size: 36px; cursor: pointer;
+            transition: all 0.3s ease; box-shadow: 0 8px 30px rgba(245, 87, 108, 0.4);
+            -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+        }
+        .record-btn:active { transform: scale(0.95); }
+        .record-btn.recording {
+            animation: pulse 1.5s infinite;
+            background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%);
+        }
+        .record-btn.disabled { opacity: 0.4; pointer-events: none; }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 8px 30px rgba(245, 87, 108, 0.4); }
+            50% { transform: scale(1.08); box-shadow: 0 12px 40px rgba(245, 87, 108, 0.6); }
+        }
+        .record-timer {
+            font-size: 1.5em; font-weight: 700; color: #f5576c;
+            display: none; margin-top: 8px;
+        }
+        .record-status { margin-top: 8px; color: #666; min-height: 20px; font-size: 0.9em; }
+
+        /* ========== 分割线 ========== */
+        .divider { text-align: center; margin: 12px 0; color: #ccc; font-size: 0.85em; }
+        .divider span { background: white; padding: 0 12px; }
+
+        /* ========== 文本区域 ========== */
+        textarea {
+            width: 100%; min-height: 80px; padding: 12px;
+            border: 2px solid #e0e0e0; border-radius: 12px;
+            font-size: 1em; font-family: inherit; resize: vertical;
+            line-height: 1.6; transition: border-color 0.2s;
+            -webkit-appearance: none;
+        }
+        textarea:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.15); }
+        .input-hint { color: #999; font-size: 0.82em; margin-bottom: 6px; }
+
+        /* ========== 按钮行 ========== */
+        .action-row { display: flex; gap: 10px; margin-top: 12px; }
+        .btn {
+            flex: 1; padding: 14px 16px; border: none; border-radius: 12px;
+            font-size: 1em; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+        }
+        .btn:active:not(:disabled) { transform: scale(0.97); }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .btn-primary:hover:not(:disabled) { box-shadow: 0 8px 25px rgba(102,126,234,0.4); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: #f0f0f0; color: #555; }
+        .btn-secondary:hover { background: #e0e0e0; }
+
+        /* ========== 结果区域 ========== */
+        .result-section { display: none; }
+        .result-section.show { display: block; }
+        .result-box {
+            padding: 12px; border-radius: 10px; font-size: 0.95em; line-height: 1.7;
+            margin-bottom: 12px; min-height: 40px; word-break: break-word;
+        }
+        .raw-box { background: #f5f5f5; border-left: 4px solid #bbb; color: #777; }
+        .cleaned-box { background: linear-gradient(135deg, #f0fff0, #e8f5e8); border-left: 4px solid #4caf50; color: #333; }
+        .result-label { font-size: 0.85em; color: #888; margin-bottom: 4px; font-weight: 500; display: flex; align-items: center; gap: 4px; }
+        .badge { font-size: 0.75em; padding: 2px 6px; border-radius: 4px; }
+        .badge-local { background: #e3f2fd; color: #1565c0; }
+        .badge-ai { background: #e8f5e8; color: #2e7d32; }
+
+        /* ========== 状态消息 ========== */
+        .status { text-align: center; padding: 8px 12px; border-radius: 8px; margin-top: 10px; font-size: 0.85em; }
+        .status.success { background: #e8f5e8; color: #2e7d32; }
+        .status.error { background: #ffebee; color: #c62828; }
+        .status.info { background: #e3f2fd; color: #1565c0; }
+        .status.warning { background: #fff3e0; color: #e65100; }
+
+        /* ========== 示例按钮 ========== */
+        .examples { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+        .examples h4 { color: #888; font-size: 0.8em; margin-bottom: 2px; width: 100%; }
+        .example-btn {
+            padding: 6px 10px; background: #f5f5f5; border: none; border-radius: 6px;
+            font-size: 0.78em; cursor: pointer; color: #555; transition: background 0.2s;
+            -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+        }
+        .example-btn:active { background: #e8e8e8; }
+
+        /* ========== 浏览器警告 ========== */
+        .browser-warning {
+            background: #fff3e0; border: 1px solid #ffb74d; border-radius: 8px;
+            padding: 10px 12px; color: #e65100; font-size: 0.85em;
+            text-align: center; margin-bottom: 10px; display: none; line-height: 1.5;
+        }
+        .browser-warning.show { display: block; }
+        .browser-warning .manual-input-btn {
+            display: inline-block; margin-top: 8px; padding: 8px 16px;
+            background: #e65100; color: white; border: none; border-radius: 6px;
+            cursor: pointer; font-size: 0.9em;
+        }
+
+        /* ========== 调试面板 ========== */
+        .debug-panel {
+            background: #1e1e1e; color: #d4d4d4; border-radius: 8px;
+            padding: 10px; margin-top: 10px; font-family: monospace;
+            font-size: 0.75em; max-height: 150px; overflow-y: auto;
+        }
+        .debug-panel .log-line { margin: 2px 0; }
+        .debug-panel .log-info { color: #4fc3f7; }
+        .debug-panel .log-success { color: #66bb6a; }
+        .debug-panel .log-error { color: #ef5350; }
+        .debug-panel .log-warn { color: #ffa726; }
+
+        /* ========== Spinner ========== */
+        .spinner {
+            display: inline-block; width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,0.3); border-top-color: white;
+            border-radius: 50%; animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ========== 页脚 ========== */
+        .footer { text-align: center; color: rgba(255,255,255,0.6); margin-top: 10px; font-size: 0.8em; }
+
+        /* ========== 安装提示 ========== */
+        .install-banner {
+            background: white; border-radius: 12px; padding: 14px;
+            margin-bottom: 14px; display: none;
+            box-shadow: 0 6px 25px rgba(0,0,0,0.15);
+        }
+        .install-banner.show { display: flex; align-items: center; justify-content: space-between; }
+        .install-banner p { flex: 1; font-size: 0.9em; color: #333; }
+        .install-banner .install-btn {
+            padding: 8px 16px; background: #667eea; color: white; border: none;
+            border-radius: 8px; cursor: pointer; font-size: 0.85em; white-space: nowrap;
+        }
+
+        /* ========== 自动清理开关 ========== */
+        #autoClean {
+            accent-color: #667eea;
+        }
+
+        /* ========== 手机端优化 ========== */
+        @media (max-width: 480px) {
+            body { padding: 12px 10px; }
+            h1 { font-size: 1.5em; }
+            .card { padding: 16px; border-radius: 14px; margin-bottom: 10px; }
+            .record-btn { width: 80px; height: 80px; font-size: 32px; }
+            .btn { padding: 12px 12px; font-size: 0.95em; }
+            textarea { min-height: 70px; font-size: 0.95em; }
+            .examples { gap: 4px; }
+            .example-btn { padding: 5px 8px; font-size: 0.75em; }
+        }
+
+        /* ========== 横屏优化 ========== */
+        @media (max-height: 500px) and (orientation: landscape) {
+            body { padding: 8px; }
+            .card { padding: 12px; margin-bottom: 6px; }
+            .record-btn { width: 60px; height: 60px; font-size: 24px; }
+            textarea { min-height: 50px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 AI 语音输入</h1>
+        <p class="subtitle">持续监听 → 实时转文字 → 自动清理语气词</p>
+
+        <!-- 安装提示 -->
+        <div class="install-banner" id="installBanner">
+            <p>📲 安装到桌面，随时使用</p>
+            <button class="install-btn" onclick="installApp()">安装</button>
+        </div>
+
+        <!-- 浏览器兼容性警告 -->
+        <div class="browser-warning" id="browserWarning">
+            <div>⚠️ <strong>浏览器不支持语音识别</strong></div>
+            <div style="margin-top:4px;">请使用 Chrome、Edge 或 Safari 16.4+</div>
+            <button class="manual-input-btn" onclick="focusTextarea()">📝 手动输入文本</button>
+        </div>
+
+        <!-- HTTPS 警告 -->
+        <div class="browser-warning" id="httpsWarning" style="background:#ffebee;border-color:#ef5350;color:#c62828;">
+            <div>🔒 <strong>需要 HTTPS 连接</strong></div>
+            <div style="margin-top:4px;">语音识别需要安全上下文，请使用 HTTPS 或 localhost</div>
+        </div>
+
+        <!-- 麦克风权限提示 -->
+        <div class="browser-warning" id="micPermission" style="display:none;background:#e3f2fd;border-color:#42a5f5;color:#1565c0;">
+            <div>🎤 <strong>需要麦克风权限</strong></div>
+            <div style="margin-top:4px;">请点击"允许"以使用语音识别</div>
+        </div>
+
+        <!-- 语音录音区域 -->
+        <div class="card">
+            <h3>
+                <span>🎙️ 语音输入</span>
+                <span id="autoStatus" style="font-size:0.8em;color:#888;">(自动监听中)</span>
+            </h3>
+            <div class="record-area">
+                <button class="record-btn" id="recordBtn">🎙️</button>
+                <div class="record-timer" id="recordTimer">00:00</div>
+                <div class="record-status" id="recordStatus">🎤 正在监听...</div>
+            </div>
+            <div class="divider"><span>—— 或者手动输入 ——</span></div>
+            <p class="input-hint">💡 语音自动转文字，也可以手动输入</p>
+            <textarea id="inputText" placeholder="在这里输入文字，或者说话..."></textarea>
+            <div class="examples">
+                <h4>📋 试试这些示例：</h4>
+                <button class="example-btn" onclick="useExample(0)">💼 工作汇报</button>
+                <button class="example-btn" onclick="useExample(1)">💬 日常对话</button>
+                <button class="example-btn" onclick="useExample(2)">💻 技术讨论</button>
+            </div>
+
+            <!-- 调试面板 -->
+            <div class="debug-panel" id="debugPanel" style="display:none;">
+                <div style="color:#999;margin-bottom:5px;">🔧 调试日志</div>
+                <div id="debugLogs"></div>
+            </div>
+            <div style="text-align:center;margin-top:6px;">
+                <button class="example-btn" onclick="toggleDebug()">🔧 显示/隐藏调试日志</button>
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="card">
+            <div class="action-row">
+                <button class="btn btn-primary" id="cleanBtn" onclick="cleanText()">✨ 清理文本</button>
+                <button class="btn btn-secondary" onclick="clearAll()">🗑️ 清空</button>
+            </div>
+            <div style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.9em;color:#555;">
+                    <input type="checkbox" id="autoClean" style="width:18px;height:18px;cursor:pointer;">
+                    <span>🤖 停止录音后自动清理</span>
+                </label>
+            </div>
+            <div class="status info" id="status">准备就绪</div>
+        </div>
+
+        <!-- 结果区域 -->
+        <div class="card result-section" id="resultSection">
+            <h3>📊 处理结果</h3>
+            <div class="result-label">原始文本</div>
+            <div class="result-box raw-box" id="rawText"></div>
+            <div class="result-label">
+                清理后
+                <span class="badge badge-local" id="cleanBadge">本地清理</span>
+            </div>
+            <div class="result-box cleaned-box" id="cleanedText"></div>
+            <div class="action-row">
+                <button class="btn btn-secondary" onclick="copyText()">📋 复制文本</button>
+            </div>
+        </div>
+
+        <div class="footer">AI 语音输入 PWA | 手机/桌面均可使用</div>
+    </div>
+
+    <script>
+        // ========== 调试日志 ==========
+        const debugPanel = document.getElementById('debugPanel');
+        const debugLogs = document.getElementById('debugLogs');
+        let debugVisible = false;
+
+        function log(type, msg) {
+            const time = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = 'log-line log-' + type;
+            div.textContent = `[${time}] ${msg}`;
+            debugLogs.appendChild(div);
+            if (debugPanel) debugPanel.scrollTop = debugPanel.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${msg}`);
+        }
+
+        function toggleDebug() {
+            debugVisible = !debugVisible;
+            debugPanel.style.display = debugVisible ? 'block' : 'none';
+        }
+
+        // ========== DOM 元素 ==========
+        const recordBtn = document.getElementById('recordBtn');
+        const recordStatus = document.getElementById('recordStatus');
+        const recordTimer = document.getElementById('recordTimer');
+        const inputText = document.getElementById('inputText');
+        const cleanBtn = document.getElementById('cleanBtn');
+        const statusEl = document.getElementById('status');
+        const resultSection = document.getElementById('resultSection');
+        const rawTextEl = document.getElementById('rawText');
+        const cleanedTextEl = document.getElementById('cleanedText');
+        const cleanBadge = document.getElementById('cleanBadge');
+        const autoStatus = document.getElementById('autoStatus');
+
+        log('info', '页面加载完成');
+
+        // ========== 示例文本 ==========
+        const examples = [
+            "嗯 这个 就是 我们今天开会讨论的那个 就是项目进度 嗯 有点慢 然后那个 我觉得可能要 要加把劲 不对 应该是需要更多人手",
+            "啊 你吃饭了没 嗯 那个 我 我待会儿要去那个超市买点东西 你要不要一起 就是顺便一起走走",
+            "嗯 这个 bug 的话 我查了一下 就是那个 可能是数据库连接池的问题 然后那个 我觉得应该要 要改一下配置 不对 应该是代码层面的问题"
+        ];
+
+        function useExample(id) {
+            inputText.value = examples[id];
+            setStatus('info', '✅ 已加载示例文本');
+            log('info', '加载示例 ' + id);
+        }
+
+        function focusTextarea() {
+            inputText.focus();
+        }
+
+        // ========== 状态管理 ==========
+        let isRecording = false;
+        let recognition = null;
+        let timerInterval = null;
+        let seconds = 0;
+        let isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        function setStatus(type, message) {
+            statusEl.className = 'status ' + type;
+            statusEl.textContent = message;
+        }
+
+        function startTimer() {
+            seconds = 0;
+            recordTimer.style.display = 'block';
+            timerInterval = setInterval(() => {
+                seconds++;
+                const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+                const s = String(seconds % 60).padStart(2, '0');
+                recordTimer.textContent = m + ':' + s;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            recordTimer.style.display = 'none';
+        }
+
+        // ========== HTTPS 检测 ==========
+        const isSecureContext = window.isSecureContext || location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+        if (!isSecureContext) {
+            document.getElementById('httpsWarning').classList.add('show');
+            log('error', '非安全上下文，语音识别可能不可用');
+        }
+
+        // ========== 浏览器语音识别检测 ==========
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        log('info', 'SpeechRecognition: ' + (SpeechRecognition ? '可用' : '不可用'));
+        log('info', '平台: ' + (isMobile ? '移动端' : '桌面端'));
+        log('info', 'UserAgent: ' + navigator.userAgent.substring(0, 100));
+
+        if (!SpeechRecognition) {
+            document.getElementById('browserWarning').classList.add('show');
+            recordBtn.classList.add('disabled');
+            recordStatus.textContent = '⚠️ 浏览器不支持语音识别';
+            log('error', 'SpeechRecognition 不可用');
+        } else {
+            try {
+                recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'zh-CN';
+                recognition.maxAlternatives = 1;
+
+                log('info', 'SpeechRecognition 实例创建成功');
+                log('info', 'continuous: ' + recognition.continuous + ', interimResults: ' + recognition.interimResults);
+
+                recognition.onstart = function() {
+                    log('success', 'onstart - 识别开始');
+                    isRecording = true;
+                    recordBtn.classList.add('recording');
+                    recordStatus.textContent = '🎤 正在听...';
+                    if (!timerInterval || seconds === 0) startTimer();
+                };
+
+                recognition.onresult = function(event) {
+                    let finalTranscript = '';
+                    let interimTranscript = '';
+
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        const confidence = (event.results[i][0].confidence * 100).toFixed(0);
+                        const isFinal = event.results[i].isFinal;
+
+                        log('info', '结果[' + i + ']: "' + transcript + '" 置信度:' + confidence + '%');
+
+                        if (isFinal) {
+                            finalTranscript += transcript;
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+
+                    if (interimTranscript) {
+                        recordStatus.textContent = '🎤 ' + interimTranscript;
+                    }
+
+                    if (finalTranscript) {
+                        const currentVal = inputText.value;
+                        if (currentVal && currentVal.trim().length > 0) {
+                            inputText.value = currentVal + ' ' + finalTranscript;
+                        } else {
+                            inputText.value = finalTranscript;
+                        }
+                        recordStatus.textContent = '✅ 已识别: ' + finalTranscript;
+                        setStatus('success', '✅ 语音已添加 (' + finalTranscript.length + ' 字符)');
+                        log('success', '最终结果已添加: ' + finalTranscript);
+                    }
+                };
+
+                recognition.onerror = function(event) {
+                    log('error', 'onerror: ' + event.error + (event.message ? ' - ' + event.message : ''));
+
+                    if (event.error === 'not-allowed') {
+                        document.getElementById('micPermission').style.display = 'block';
+                        setStatus('error', '❌ 麦克风权限被拒绝');
+                    } else if (event.error === 'no-speech') {
+                        // 没有检测到语音，继续监听
+                        log('info', '未检测到语音，继续监听');
+                        return;
+                    } else if (event.error === 'aborted') {
+                        log('warn', '识别被中止（正常）');
+                        return;
+                    } else if (event.error === 'network') {
+                        setStatus('error', '❌ 网络错误，请检查连接');
+                    } else {
+                        setStatus('warning', '⚠️ 语音识别问题: ' + event.error);
+                    }
+                };
+
+                recognition.onend = function() {
+                    log('info', 'onend - isRecording=' + isRecording);
+                    if (isRecording) {
+                        try {
+                            recognition.start();
+                            log('info', '自动重启识别');
+                        } catch (e) {
+                            log('error', '重启识别失败: ' + e.message);
+                        }
+                    }
+                };
+
+                // 🚀 页面加载后自动开始监听
+                setTimeout(() => {
+                    log('info', '自动开始监听');
+                    startRecording();
+                }, 500);
+
+            } catch (e) {
+                log('error', '语音识别初始化失败: ' + e.message);
+                document.getElementById('browserWarning').classList.add('show');
+                recordBtn.classList.add('disabled');
+            }
+        }
+
+        function startRecording() {
+            log('info', 'startRecording 被调用');
+            if (!recognition) {
+                log('error', 'recognition 为 null');
+                setStatus('warning', '⚠️ 语音识别不可用，请手动输入');
+                return;
+            }
+            try {
+                log('info', '调用 recognition.start()');
+                recognition.start();
+            } catch (e) {
+                log('error', 'recognition.start() 失败: ' + e.message);
+                if (e.message && (e.message.includes('already') || e.message.includes('启动'))) {
+                    log('info', '识别已在运行');
+                } else {
+                    setStatus('warning', '⚠️ 语音识别启动失败');
+                }
+            }
+        }
+
+        function stopRecording() {
+            log('info', 'stopRecording 被调用');
+            isRecording = false;
+            recordBtn.classList.remove('recording');
+            stopTimer();
+            if (recognition) {
+                try { recognition.stop(); log('info', 'recognition.stop() 成功'); } catch (e) { log('error', 'stop 失败'); }
+            }
+            const text = inputText.value.trim();
+            if (text) {
+                setStatus('success', '✅ 已停止 (' + seconds + '秒)，共 ' + text.length + ' 字符');
+                autoStatus.textContent = '(已停止)';
+                recordStatus.textContent = '⏸️ 已停止，点击按钮重新开始';
+
+                // 如果开启了自动清理，自动调用清理
+                const autoClean = document.getElementById('autoClean');
+                log('info', '停止录音 - 文本长度: ' + text.length + ', 自动清理勾选: ' + (autoClean ? autoClean.checked : '找不到元素'));
+                if (autoClean && autoClean.checked) {
+                    log('info', '🤖 自动清理已开启，开始清理');
+                    setTimeout(() => {
+                        log('info', '延迟 200ms 后调用 cleanText');
+                        log('info', '此时 inputText.value 长度: ' + inputText.value.trim().length);
+                        cleanText();
+                    }, 200);
+                } else {
+                    log('info', '⏭️ 自动清理未勾选，跳过');
+                }
+            } else {
+                setStatus('info', '已停止监听');
+                autoStatus.textContent = '(已停止)';
+                recordStatus.textContent = '⏸️ 已停止，点击按钮重新开始';
+            }
+        }
+
+        function restartRecording() {
+            log('info', 'restartRecording 被调用');
+            inputText.value = '';
+            startTimer();
+            try {
+                recognition.start();
+                log('info', '重新开始监听');
+            } catch (e) {
+                log('error', '重新开始失败: ' + e.message);
+            }
+        }
+
+        recordBtn.addEventListener('click', function() {
+            log('info', 'recordBtn 点击，isRecording=' + isRecording);
+            if (isRecording) {
+                stopRecording();
+            } else {
+                restartRecording();
+            }
+        });
+
+        // ========== 清理文本 ==========
+        async function cleanText() {
+            const text = inputText.value.trim();
+            if (!text) {
+                setStatus('error', '❌ 请先输入文本');
+                return;
+            }
+
+            log('info', 'cleanText 被调用，长度: ' + text.length);
+            cleanBtn.disabled = true;
+            cleanBtn.innerHTML = '<span class="spinner"></span> 处理中...';
+            resultSection.classList.add('show');
+            rawTextEl.textContent = text;
+            cleanedTextEl.innerHTML = '<div style="text-align:center;color:#999;padding:20px;"><span class="spinner" style="border-color:#ddd;border-top-color:#667eea;"></span><br>处理中...</div>';
+            setStatus('info', '🔄 正在清理文本...');
+
+            try {
+                const response = await fetch('/api/clean', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
+
+                const data = await response.json();
+                log('info', 'API 响应: ' + JSON.stringify(data).substring(0, 100));
+
+                if (data.success) {
+                    cleanedTextEl.textContent = data.cleaned_text;
+                    if (data.use_qwen) {
+                        cleanBadge.className = 'badge badge-ai';
+                        cleanBadge.textContent = '✨ AI 清理';
+                    } else {
+                        cleanBadge.className = 'badge badge-local';
+                        cleanBadge.textContent = '📝 本地清理';
+                    }
+                    setStatus('success', '✅ 清理完成（' + text.length + ' → ' + data.cleaned_text.length + ' 字符）');
+                    log('success', '清理完成: ' + data.cleaned_text.substring(0, 50));
+                } else {
+                    cleanedTextEl.innerHTML = '<span style="color:#c62828;">❌ ' + data.error + '</span>';
+                    setStatus('error', '❌ 清理失败');
+                    log('error', '清理失败: ' + data.error);
+                }
+            } catch (err) {
+                cleanedTextEl.innerHTML = '<span style="color:#c62828;">❌ 网络错误</span>';
+                setStatus('error', '❌ 无法连接到服务器');
+                log('error', '网络错误: ' + err.message);
+            } finally {
+                cleanBtn.disabled = false;
+                cleanBtn.innerHTML = '✨ 清理文本';
+            }
+        }
+
+        function copyText() {
+            const text = cleanedTextEl.textContent;
+            if (!text || text.startsWith('❌')) return;
+            navigator.clipboard.writeText(text).then(function() {
+                const btn = event.target.closest('.btn');
+                const orig = btn.innerHTML;
+                btn.innerHTML = '✅ 已复制';
+                setTimeout(function() { btn.innerHTML = orig; }, 2000);
+                log('info', '已复制到剪贴板');
+            });
+        }
+
+        function clearAll() {
+            inputText.value = '';
+            resultSection.classList.remove('show');
+            setStatus('info', '已清空');
+            if (isRecording) {
+                recordStatus.textContent = '🎤 正在监听...';
+            }
+            log('info', '已清空');
+        }
+
+        // ========== PWA 安装 ==========
+        let deferredPrompt = null;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installBanner').classList.add('show');
+            log('info', 'PWA 安装提示可用');
+        });
+
+        function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        log('success', '用户接受了 PWA 安装');
+                    } else {
+                        log('info', '用户拒绝了 PWA 安装');
+                    }
+                    deferredPrompt = null;
+                    document.getElementById('installBanner').classList.remove('show');
+                });
+            } else {
+                // iOS Safari 手动安装提示
+                if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+                    alert('在 Safari 中，点击底部分享按钮 → "添加到主屏幕" 即可安装');
+                } else {
+                    alert('请使用 Chrome 或 Edge 浏览器，点击右上角菜单 → "安装应用"');
+                }
+            }
+        }
+
+        // ========== Service Worker 注册 ==========
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((reg) => log('success', 'Service Worker 注册成功: ' + reg.scope))
+                    .catch((err) => log('error', 'Service Worker 注册失败: ' + err.message));
+            });
+        }
+
+        // ========== 自动清理偏好持久化 ==========
+        const autoCleanCheckbox = document.getElementById('autoClean');
+        const savedAutoClean = localStorage.getItem('autoClean');
+        // 默认开启（true），除非用户手动关闭
+        autoCleanCheckbox.checked = savedAutoClean === null ? true : savedAutoClean === 'true';
+        log('info', '自动清理初始状态: ' + autoCleanCheckbox.checked + ' (localStorage: ' + savedAutoClean + ')');
+        autoCleanCheckbox.addEventListener('change', () => {
+            localStorage.setItem('autoClean', autoCleanCheckbox.checked);
+            log('info', '自动清理: ' + (autoCleanCheckbox.checked ? '开启' : '关闭'));
+        });
+
+        // ========== 页面可见性 API（检测后台切换） ==========
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                log('info', '页面切换到后台');
+            } else {
+                log('info', '页面回到前台');
+                if (isRecording && recognition) {
+                    try {
+                        recognition.start();
+                        log('info', '恢复语音识别');
+                    } catch (e) {
+                        log('error', '恢复语音识别失败: ' + e.message);
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -8,8 +8,8 @@ provider:
     type: openai-compatible
     baseUrl: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
     apiKey: ${QWEN_API_KEY}
-    model: qwen3-coder-plus
-    contextLimit: 256000
+    model: qwen-turbo
+    contextLimit: 131072
     
   claude:
     type: anthropic
